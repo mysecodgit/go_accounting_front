@@ -1,5 +1,6 @@
 import PropTypes from "prop-types";
 import React from "react";
+import { useParams } from "react-router-dom";
 import {
   Container
 } from "reactstrap";
@@ -11,6 +12,7 @@ import Breadcrumbs from "../../components/Common/Breadcrumb";
 import { withTranslation } from "react-i18next";
 
 const Dashboard = props => {
+  const { id: buildingId } = useParams();
 
   //meta title
   document.title = "Dashboard | Skote - Vite React Admin & Dashboard Template";
@@ -24,6 +26,11 @@ const Dashboard = props => {
             title={props.t("Dashboards")}
             breadcrumbItem={props.t("Dashboard")}
           />
+          {buildingId && (
+            <div className="alert alert-info">
+              Viewing data for Building ID: {buildingId}
+            </div>
+          )}
         </Container>
       </div>
 

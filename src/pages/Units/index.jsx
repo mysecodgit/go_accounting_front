@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo } from "react";
-import { Link } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import TableContainer from "../../components/Common/TableContainer";
 import Spinners from "../../components/Common/Spinner";
 import {
@@ -28,6 +28,7 @@ import moment from "moment/moment";
 
 const Units = () => {
   document.title = "Units";
+  const { id: buildingId } = useParams();
 
   const [unit, setUnit] = useState();
   const [isLoading, setLoading] = useState(true);
@@ -42,7 +43,7 @@ const Units = () => {
     initialValues: {
       id: (unit && unit.id) || "",
       name: (unit && unit.name) || "",
-      building_id: (unit && unit.building_id) || "",
+      building_id: (unit && unit.building_id) || (buildingId ? parseInt(buildingId) : ""),
     },
     validationSchema: Yup.object({
       name: Yup.string().required("Please Enter Unit Name"),
@@ -51,8 +52,12 @@ const Units = () => {
     onSubmit: async (values) => {
       try {
         if (isEdit) {
+          let url = `units/${values.id}`;
+          if (buildingId) {
+            url = `buildings/${buildingId}/units/${values.id}`;
+          }
           const { data } = await axiosInstance.put(
-            `units/${values.id}`,
+            url,
             { name: values.name, building_id: parseInt(values.building_id) }
           );
           toast.success("Unit updated successfully");
@@ -60,7 +65,11 @@ const Units = () => {
           setIsNewModelOpen(false);
           fetchUnits();
         } else {
-          const { data } = await axiosInstance.post("units", {
+          let url = "units";
+          if (buildingId) {
+            url = `buildings/${buildingId}/units`;
+          }
+          const { data } = await axiosInstance.post(url, {
             name: values.name,
             building_id: parseInt(values.building_id),
           });
@@ -88,7 +97,11 @@ const Units = () => {
   const fetchUnits = async () => {
     try {
       setLoading(true);
-      const { data } = await axiosInstance.get("units");
+      let url = "units";
+      if (buildingId) {
+        url = `buildings/${buildingId}/units`;
+      }
+      const { data } = await axiosInstance.get(url);
       setUnits(data || []);
       setLoading(false);
     } catch (error) {
@@ -101,11 +114,15 @@ const Units = () => {
   useEffect(() => {
     fetchBuildings();
     fetchUnits();
-  }, []);
+  }, [buildingId]);
 
   const onDeleteUnit = async () => {
     try {
-      await axiosInstance.delete("units/" + unit.id);
+      let url = `units/${unit.id}`;
+      if (buildingId) {
+        url = `buildings/${buildingId}/units/${unit.id}`;
+      }
+      await axiosInstance.delete(url);
       toast.success("Unit deleted successfully");
       setDeleteModal(false);
       fetchUnits();
@@ -268,33 +285,35 @@ const Units = () => {
                         </FormFeedback>
                       ) : null}
                     </div>
-                    <div className="mb-3">
-                      <Label>Building</Label>
-                      <Input
-                        name="building_id"
-                        type="select"
-                        onChange={validation.handleChange}
-                        onBlur={validation.handleBlur}
-                        value={validation.values.building_id || ""}
-                        invalid={
-                          validation.touched.building_id && validation.errors.building_id
-                            ? true
-                            : false
-                        }
-                      >
-                        <option value="">Select Building</option>
-                        {buildings.map((building) => (
-                          <option key={building.id} value={building.id}>
-                            {building.name}
-                          </option>
-                        ))}
-                      </Input>
-                      {validation.touched.building_id && validation.errors.building_id ? (
-                        <FormFeedback type="invalid">
-                          {validation.errors.building_id}
-                        </FormFeedback>
-                      ) : null}
-                    </div>
+                    {!buildingId && (
+                      <div className="mb-3">
+                        <Label>Building</Label>
+                        <Input
+                          name="building_id"
+                          type="select"
+                          onChange={validation.handleChange}
+                          onBlur={validation.handleBlur}
+                          value={validation.values.building_id || ""}
+                          invalid={
+                            validation.touched.building_id && validation.errors.building_id
+                              ? true
+                              : false
+                          }
+                        >
+                          <option value="">Select Building</option>
+                          {buildings.map((building) => (
+                            <option key={building.id} value={building.id}>
+                              {building.name}
+                            </option>
+                          ))}
+                        </Input>
+                        {validation.touched.building_id && validation.errors.building_id ? (
+                          <FormFeedback type="invalid">
+                            {validation.errors.building_id}
+                          </FormFeedback>
+                        ) : null}
+                      </div>
+                    )}
                   </Col>
                 </Row>
                 <Row>

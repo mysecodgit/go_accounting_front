@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo } from "react";
-import { Link } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import TableContainer from "../../components/Common/TableContainer";
 import Spinners from "../../components/Common/Spinner";
 import {
@@ -28,6 +28,7 @@ import moment from "moment/moment";
 
 const Accounts = () => {
   document.title = "Accounts";
+  const { id: buildingId } = useParams();
 
   const [account, setAccount] = useState();
   const [isLoading, setLoading] = useState(true);
@@ -45,7 +46,7 @@ const Accounts = () => {
       account_number: (account && account.account_number) || "",
       account_name: (account && account.account_name) || "",
       account_type: (account && account.account_type) || "",
-      building_id: (account && account.building_id) || "",
+      building_id: (account && account.building_id) || (buildingId ? parseInt(buildingId) : ""),
       isDefault: (account && account.isDefault) || 0,
     },
     validationSchema: Yup.object({
@@ -58,8 +59,12 @@ const Accounts = () => {
     onSubmit: async (values) => {
       try {
         if (isEdit) {
+          let url = `accounts/${values.id}`;
+          if (buildingId) {
+            url = `buildings/${buildingId}/accounts/${values.id}`;
+          }
           const { data } = await axiosInstance.put(
-            `accounts/${values.id}`,
+            url,
             { 
               account_number: parseInt(values.account_number),
               account_name: values.account_name,
@@ -73,7 +78,11 @@ const Accounts = () => {
           setIsNewModelOpen(false);
           fetchAccounts();
         } else {
-          const { data } = await axiosInstance.post("accounts", {
+          let url = "accounts";
+          if (buildingId) {
+            url = `buildings/${buildingId}/accounts`;
+          }
+          const { data } = await axiosInstance.post(url, {
             account_number: parseInt(values.account_number),
             account_name: values.account_name,
             account_type: parseInt(values.account_type),
@@ -113,7 +122,11 @@ const Accounts = () => {
   const fetchAccounts = async () => {
     try {
       setLoading(true);
-      const { data } = await axiosInstance.get("accounts");
+      let url = "accounts";
+      if (buildingId) {
+        url = `buildings/${buildingId}/accounts`;
+      }
+      const { data } = await axiosInstance.get(url);
       setAccounts(data || []);
       setLoading(false);
     } catch (error) {
@@ -127,11 +140,15 @@ const Accounts = () => {
     fetchBuildings();
     fetchAccountTypes();
     fetchAccounts();
-  }, []);
+  }, [buildingId]);
 
   const onDeleteAccount = async () => {
     try {
-      await axiosInstance.delete("accounts/" + account.id);
+      let url = `accounts/${account.id}`;
+      if (buildingId) {
+        url = `buildings/${buildingId}/accounts/${account.id}`;
+      }
+      await axiosInstance.delete(url);
       toast.success("Account deleted successfully");
       setDeleteModal(false);
       fetchAccounts();
@@ -356,33 +373,35 @@ const Accounts = () => {
                         </FormFeedback>
                       ) : null}
                     </div>
-                    <div className="mb-3">
-                      <Label>Building</Label>
-                      <Input
-                        name="building_id"
-                        type="select"
-                        onChange={validation.handleChange}
-                        onBlur={validation.handleBlur}
-                        value={validation.values.building_id || ""}
-                        invalid={
-                          validation.touched.building_id && validation.errors.building_id
-                            ? true
-                            : false
-                        }
-                      >
-                        <option value="">Select Building</option>
-                        {buildings.map((building) => (
-                          <option key={building.id} value={building.id}>
-                            {building.name}
-                          </option>
-                        ))}
-                      </Input>
-                      {validation.touched.building_id && validation.errors.building_id ? (
-                        <FormFeedback type="invalid">
-                          {validation.errors.building_id}
-                        </FormFeedback>
-                      ) : null}
-                    </div>
+                    {!buildingId && (
+                      <div className="mb-3">
+                        <Label>Building</Label>
+                        <Input
+                          name="building_id"
+                          type="select"
+                          onChange={validation.handleChange}
+                          onBlur={validation.handleBlur}
+                          value={validation.values.building_id || ""}
+                          invalid={
+                            validation.touched.building_id && validation.errors.building_id
+                              ? true
+                              : false
+                          }
+                        >
+                          <option value="">Select Building</option>
+                          {buildings.map((building) => (
+                            <option key={building.id} value={building.id}>
+                              {building.name}
+                            </option>
+                          ))}
+                        </Input>
+                        {validation.touched.building_id && validation.errors.building_id ? (
+                          <FormFeedback type="invalid">
+                            {validation.errors.building_id}
+                          </FormFeedback>
+                        ) : null}
+                      </div>
+                    )}
                     <div className="mb-3">
                       <Label>Is Default</Label>
                       <Input

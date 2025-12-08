@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo } from "react";
-import { Link } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import TableContainer from "../../components/Common/TableContainer";
 import Spinners from "../../components/Common/Spinner";
 import {
@@ -28,6 +28,7 @@ import moment from "moment/moment";
 
 const People = () => {
   document.title = "People";
+  const { id: buildingId } = useParams();
 
   const [person, setPerson] = useState();
   const [isLoading, setLoading] = useState(true);
@@ -44,8 +45,8 @@ const People = () => {
       id: (person && person.id) || "",
       name: (person && person.name) || "",
       phone: (person && person.phone) || "",
-      type_id: (person && person.type_id) || "",
-      building_id: (person && person.building_id) || "",
+      type_id: (person && person.type?.id) || (person && person.type_id) || "",
+      building_id: (person && person.building_id) || (buildingId ? parseInt(buildingId) : ""),
     },
     validationSchema: Yup.object({
       name: Yup.string().required("Please Enter Name"),
@@ -56,8 +57,12 @@ const People = () => {
     onSubmit: async (values) => {
       try {
         if (isEdit) {
+          let url = `people/${values.id}`;
+          if (buildingId) {
+            url = `buildings/${buildingId}/people/${values.id}`;
+          }
           const { data } = await axiosInstance.put(
-            `people/${values.id}`,
+            url,
             { 
               name: values.name,
               phone: values.phone,
@@ -70,7 +75,11 @@ const People = () => {
           setIsNewModelOpen(false);
           fetchPeople();
         } else {
-          const { data } = await axiosInstance.post("people", {
+          let url = "people";
+          if (buildingId) {
+            url = `buildings/${buildingId}/people`;
+          }
+          const { data } = await axiosInstance.post(url, {
             name: values.name,
             phone: values.phone,
             type_id: parseInt(values.type_id),
@@ -109,7 +118,11 @@ const People = () => {
   const fetchPeople = async () => {
     try {
       setLoading(true);
-      const { data } = await axiosInstance.get("people");
+      let url = "people";
+      if (buildingId) {
+        url = `buildings/${buildingId}/people`;
+      }
+      const { data } = await axiosInstance.get(url);
       setPeople(data || []);
       setLoading(false);
     } catch (error) {
@@ -123,11 +136,15 @@ const People = () => {
     fetchBuildings();
     fetchPeopleTypes();
     fetchPeople();
-  }, []);
+  }, [buildingId]);
 
   const onDeletePerson = async () => {
     try {
-      await axiosInstance.delete("people/" + person.id);
+      let url = `people/${person.id}`;
+      if (buildingId) {
+        url = `buildings/${buildingId}/people/${person.id}`;
+      }
+      await axiosInstance.delete(url);
       toast.success("Person deleted successfully");
       setDeleteModal(false);
       fetchPeople();
@@ -159,11 +176,33 @@ const People = () => {
       },
       {
         header: "Type",
-        accessorKey: "people_type.title",
+        accessorKey: "type.title",
         enableColumnFilter: false,
         enableSorting: true,
         cell: (cell) => {
-          return <>{cell.row.original.people_type?.title || "N/A"}</>;
+          const typeTitle = cell.row.original.type?.title;
+          const typeId = cell.row.original.type?.id;
+          
+          // Different soft badge colors based on type ID
+          const getBadgeColor = (id) => {
+            const colors = [
+              "badge-soft-primary",
+              "badge-soft-success",
+              "badge-soft-info",
+              "badge-soft-warning",
+              "badge-soft-danger",
+              "badge-soft-secondary",
+              "badge-soft-dark",
+              "badge-soft-primary",
+            ];
+            return colors[(id - 1) % colors.length] || "badge-soft-secondary";
+          };
+          
+          return typeTitle ? (
+            <span className={`badge ${getBadgeColor(typeId)}`}>{typeTitle}</span>
+          ) : (
+            <span className="badge badge-soft-secondary">N/A</span>
+          );
         },
       },
       {
@@ -353,33 +392,35 @@ const People = () => {
                         </FormFeedback>
                       ) : null}
                     </div>
-                    <div className="mb-3">
-                      <Label>Building</Label>
-                      <Input
-                        name="building_id"
-                        type="select"
-                        onChange={validation.handleChange}
-                        onBlur={validation.handleBlur}
-                        value={validation.values.building_id || ""}
-                        invalid={
-                          validation.touched.building_id && validation.errors.building_id
-                            ? true
-                            : false
-                        }
-                      >
-                        <option value="">Select Building</option>
-                        {buildings.map((building) => (
-                          <option key={building.id} value={building.id}>
-                            {building.name}
-                          </option>
-                        ))}
-                      </Input>
-                      {validation.touched.building_id && validation.errors.building_id ? (
-                        <FormFeedback type="invalid">
-                          {validation.errors.building_id}
-                        </FormFeedback>
-                      ) : null}
-                    </div>
+                    {!buildingId && (
+                      <div className="mb-3">
+                        <Label>Building</Label>
+                        <Input
+                          name="building_id"
+                          type="select"
+                          onChange={validation.handleChange}
+                          onBlur={validation.handleBlur}
+                          value={validation.values.building_id || ""}
+                          invalid={
+                            validation.touched.building_id && validation.errors.building_id
+                              ? true
+                              : false
+                          }
+                        >
+                          <option value="">Select Building</option>
+                          {buildings.map((building) => (
+                            <option key={building.id} value={building.id}>
+                              {building.name}
+                            </option>
+                          ))}
+                        </Input>
+                        {validation.touched.building_id && validation.errors.building_id ? (
+                          <FormFeedback type="invalid">
+                            {validation.errors.building_id}
+                          </FormFeedback>
+                        ) : null}
+                      </div>
+                    )}
                   </Col>
                 </Row>
                 <Row>

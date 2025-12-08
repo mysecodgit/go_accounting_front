@@ -34,7 +34,6 @@ const PeopleTypes = () => {
   const [isNewModalOpen, setIsNewModelOpen] = useState(false);
   const [isEdit, setIsEdit] = useState(false);
   const [peopleTypes, setPeopleTypes] = useState([]);
-  const [buildings, setBuildings] = useState([]);
   const [deleteModal, setDeleteModal] = useState(false);
 
   const validation = useFormik({
@@ -42,18 +41,16 @@ const PeopleTypes = () => {
     initialValues: {
       id: (peopleType && peopleType.id) || "",
       title: (peopleType && peopleType.title) || "",
-      building_id: (peopleType && peopleType.building_id) || "",
     },
     validationSchema: Yup.object({
       title: Yup.string().required("Please Enter Title"),
-      building_id: Yup.number().required("Please Select Building").min(1, "Please Select Building"),
     }),
     onSubmit: async (values) => {
       try {
         if (isEdit) {
           const { data } = await axiosInstance.put(
             `people-types/${values.id}`,
-            { title: values.title, building_id: parseInt(values.building_id) }
+            { title: values.title }
           );
           toast.success("People Type updated successfully");
           validation.resetForm();
@@ -62,7 +59,6 @@ const PeopleTypes = () => {
         } else {
           const { data } = await axiosInstance.post("people-types", {
             title: values.title,
-            building_id: parseInt(values.building_id),
           });
           toast.success("People Type created successfully");
           validation.resetForm();
@@ -75,15 +71,6 @@ const PeopleTypes = () => {
       }
     },
   });
-
-  const fetchBuildings = async () => {
-    try {
-      const { data } = await axiosInstance.get("buildings");
-      setBuildings(data || []);
-    } catch (error) {
-      console.log("Error fetching buildings", error);
-    }
-  };
 
   const fetchPeopleTypes = async () => {
     try {
@@ -99,13 +86,12 @@ const PeopleTypes = () => {
   };
 
   useEffect(() => {
-    fetchBuildings();
     fetchPeopleTypes();
   }, []);
 
   const onDeletePeopleType = async () => {
     try {
-      await axiosInstance.delete("people-types/" + peopleType.id);
+      await axiosInstance.delete(`people-types/${peopleType.id}`);
       toast.success("People Type deleted successfully");
       setDeleteModal(false);
       fetchPeopleTypes();
@@ -128,15 +114,6 @@ const PeopleTypes = () => {
         accessorKey: "title",
         enableColumnFilter: false,
         enableSorting: true,
-      },
-      {
-        header: "Building",
-        accessorKey: "building.name",
-        enableColumnFilter: false,
-        enableSorting: true,
-        cell: (cell) => {
-          return <>{cell.row.original.building?.name || "N/A"}</>;
-        },
       },
       {
         header: "Action",
@@ -255,33 +232,6 @@ const PeopleTypes = () => {
                       {validation.touched.title && validation.errors.title ? (
                         <FormFeedback type="invalid">
                           {validation.errors.title}
-                        </FormFeedback>
-                      ) : null}
-                    </div>
-                    <div className="mb-3">
-                      <Label>Building</Label>
-                      <Input
-                        name="building_id"
-                        type="select"
-                        onChange={validation.handleChange}
-                        onBlur={validation.handleBlur}
-                        value={validation.values.building_id || ""}
-                        invalid={
-                          validation.touched.building_id && validation.errors.building_id
-                            ? true
-                            : false
-                        }
-                      >
-                        <option value="">Select Building</option>
-                        {buildings.map((building) => (
-                          <option key={building.id} value={building.id}>
-                            {building.name}
-                          </option>
-                        ))}
-                      </Input>
-                      {validation.touched.building_id && validation.errors.building_id ? (
-                        <FormFeedback type="invalid">
-                          {validation.errors.building_id}
                         </FormFeedback>
                       ) : null}
                     </div>

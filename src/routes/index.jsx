@@ -10,6 +10,9 @@ import Logout from "../pages/Authentication/Logout";
 import Register from "../pages/Authentication/Register";
 import ForgetPwd from "../pages/Authentication/ForgetPassword";
 
+// // Buildings List (after login)
+import BuildingsList from "../pages/BuildingsList";
+
 // // Dashboard
 import Dashboard from "../pages/Dashboard/index";
 import Vendors from "../pages/Vendors";
@@ -24,12 +27,24 @@ import Accounts from "../pages/Accounts";
 import Users from "../pages/Users";
 
 const authProtectedRoutes = [
-  { path: "/dashboard", component: <Dashboard /> },
+  // Buildings list page (first page after login)
+  { path: "/buildings-list", component: <BuildingsList /> },
+
+  // Building-scoped routes
+  { path: "/building/:id/dashboard", component: <Dashboard /> },
+  { path: "/building/:id/units", component: <Units /> },
+  { path: "/building/:id/people-types", component: <PeopleTypes /> },
+  { path: "/building/:id/people", component: <People /> },
+  { path: "/building/:id/periods", component: <Periods /> },
+  { path: "/building/:id/account-types", component: <AccountTypes /> },
+  { path: "/building/:id/accounts", component: <Accounts /> },
+  { path: "/building/:id/buildings", component: <Buildings /> },
 
   //profile
   { path: "/profile", component: <UserProfile /> },
   
-  // Modules
+  // Legacy routes (keeping for backward compatibility)
+  { path: "/dashboard", component: <Dashboard /> },
   { path: "/buildings", component: <Buildings /> },
   { path: "/units", component: <Units /> },
   { path: "/people-types", component: <PeopleTypes /> },
@@ -45,7 +60,7 @@ const authProtectedRoutes = [
 
   // this route should be at the end of all other routes
   // eslint-disable-next-line react/display-name
-  { path: "/", exact: true, component: <Navigate to="/dashboard" /> },
+  { path: "/", exact: true, component: <Navigate to="/buildings-list" /> },
 ];
 
 const publicRoutes = [

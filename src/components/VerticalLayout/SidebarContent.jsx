@@ -6,7 +6,7 @@ import SimpleBar from "simplebar-react";
 
 // MetisMenu
 import MetisMenu from "metismenujs";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useParams } from "react-router-dom";
 import withRouter from "../Common/withRouter";
 
 //i18n
@@ -16,6 +16,15 @@ import { useCallback } from "react";
 const SidebarContent = (props) => {
   const ref = useRef();
   const path = useLocation();
+  const { id: buildingId } = useParams();
+  
+  // Helper function to build routes with building context
+  const buildRoute = (route) => {
+    if (buildingId) {
+      return `/building/${buildingId}${route}`;
+    }
+    return route;
+  };
 
   const activateParentDropdown = useCallback((item) => {
     item.classList.add("active");
@@ -145,76 +154,94 @@ const SidebarContent = (props) => {
         <div id="sidebar-menu">
           <ul className="metismenu list-unstyled" id="side-menu">
             <li className="menu-title">{props.t("Menu")} </li>
-            <li>
-              <Link to="/dashboard" className=" ">
-                <i className="bx bx-calendar"></i>
-                <span>{props.t("Dashboard")}</span>
-              </Link>
-            </li>
+            {buildingId && (
+              <>
+                <li>
+                  <Link to={buildRoute("/dashboard")} className=" ">
+                    <i className="bx bx-calendar"></i>
+                    <span>{props.t("Dashboard")}</span>
+                  </Link>
+                </li>
+
+                {/* Units */}
+                <li>
+                  <Link to={buildRoute("/units")} className=" ">
+                    <i className="bx bx-home"></i>
+                    <span>{props.t("Units")}</span>
+                  </Link>
+                </li>
+
+                {/* People */}
+                <li>
+                  <Link to={buildRoute("/people")} className=" ">
+                    <i className="bx bx-user"></i>
+                    <span>{props.t("People")}</span>
+                  </Link>
+                </li>
+
+                {/* Periods */}
+                <li>
+                  <Link to={buildRoute("/periods")} className=" ">
+                    <i className="bx bx-calendar-check"></i>
+                    <span>{props.t("Periods")}</span>
+                  </Link>
+                </li>
+
+                {/* Accounts */}
+                <li>
+                  <Link to={buildRoute("/accounts")} className=" ">
+                    <i className="bx bx-wallet"></i>
+                    <span>{props.t("Accounts")}</span>
+                  </Link>
+                </li>
+              </>
+            )}
+
+            {/* Buildings List - shown when no building is selected */}
+            {!buildingId && (
+              <>
+                <li>
+                  <Link to="/buildings-list" className=" ">
+                    <i className="bx bx-building"></i>
+                    <span>{props.t("Buildings")}</span>
+                  </Link>
+                </li>
+                
+                {/* Account Types */}
+                <li>
+                  <Link to="/account-types" className=" ">
+                    <i className="bx bx-list-ul"></i>
+                    <span>{props.t("Account Types")}</span>
+                  </Link>
+                </li>
+                
+                {/* People Types */}
+                <li>
+                  <Link to="/people-types" className=" ">
+                    <i className="bx bx-group"></i>
+                    <span>{props.t("People Types")}</span>
+                  </Link>
+                </li>
+                
+                {/* Users */}
+                <li>
+                  <Link to="/users" className=" ">
+                    <i className="bx bx-user-circle"></i>
+                    <span>{props.t("Users")}</span>
+                  </Link>
+                </li>
+              </>
+            )}
             
-            {/* Buildings */}
-            <li>
-              <Link to="/buildings" className=" ">
-                <i className="bx bx-building"></i>
-                <span>{props.t("Buildings")}</span>
-              </Link>
-            </li>
-
-            {/* Units */}
-            <li>
-              <Link to="/units" className=" ">
-                <i className="bx bx-home"></i>
-                <span>{props.t("Units")}</span>
-              </Link>
-            </li>
-
-            {/* People Types */}
-            <li>
-              <Link to="/people-types" className=" ">
-                <i className="bx bx-group"></i>
-                <span>{props.t("People Types")}</span>
-              </Link>
-            </li>
-
-            {/* People */}
-            <li>
-              <Link to="/people" className=" ">
-                <i className="bx bx-user"></i>
-                <span>{props.t("People")}</span>
-              </Link>
-            </li>
-
-            {/* Periods */}
-            <li>
-              <Link to="/periods" className=" ">
-                <i className="bx bx-calendar-check"></i>
-                <span>{props.t("Periods")}</span>
-              </Link>
-            </li>
-
-            {/* Account Types */}
-            <li>
-              <Link to="/account-types" className=" ">
-                <i className="bx bx-category"></i>
-                <span>{props.t("Account Types")}</span>
-              </Link>
-            </li>
-
-            {/* Accounts */}
-            <li>
-              <Link to="/accounts" className=" ">
-                <i className="bx bx-wallet"></i>
-                <span>{props.t("Accounts")}</span>
-              </Link>
-            </li>
-
-            {/* Users */}
-            <li>
-              <Link to="/users" className=" ">
-                <i className="bx bx-user-circle"></i>
-                <span>{props.t("Users")}</span>
-              </Link>
-            </li>
+            {/* Switch Building */}
+            {buildingId && (
+              <li>
+                <Link to="/buildings-list" className=" ">
+                  <i className="bx bx-building-house"></i>
+                  <span>{props.t("Switch Building")}</span>
+                </Link>
+              </li>
+            )}
 
             {/* Static sidebar content commented out */}
             {/* 
