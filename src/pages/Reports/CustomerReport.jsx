@@ -57,7 +57,8 @@ const CustomerReport = () => {
     try {
       const url = `buildings/${buildingId}/people`;
       const { data } = await axiosInstance.get(url);
-      setPeople(data.people || []);
+      // People API returns an array directly, not wrapped in {people: [...]}
+      setPeople(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error("Error fetching people:", error);
     }
@@ -76,6 +77,7 @@ const CustomerReport = () => {
         url += `&people_id=${filters.people_id}`;
       }
       const { data } = await axiosInstance.get(url);
+      console.log("Customer Report Data:", data); // Debug log
       setReport(data);
     } catch (error) {
       toast.error(error.response?.data?.error || "Failed to fetch report");
@@ -94,33 +96,42 @@ const CustomerReport = () => {
 
   const summaryColumns = [
     {
-      Header: "Customer Name",
-      accessor: "people_name",
-      id: "people_name",
+      header: "Customer Name",
+      accessorKey: "people_name",
+      enableColumnFilter: false,
+      enableSorting: true,
     },
     {
-      Header: "Type",
-      accessor: "people_type",
-      id: "people_type",
+      header: "Type",
+      accessorKey: "people_type",
+      enableColumnFilter: false,
+      enableSorting: true,
     },
     {
-      Header: "Total Invoices",
-      accessor: "total_invoices",
-      id: "total_invoices",
-      Cell: ({ value }) => parseFloat(value || 0).toFixed(2),
+      header: "Total Invoices",
+      accessorKey: "total_invoices",
+      enableColumnFilter: false,
+      enableSorting: true,
+      cell: ({ row }) => {
+        return <>{parseFloat(row.original.total_invoices || 0).toFixed(2)}</>;
+      },
     },
     {
-      Header: "Total Payments",
-      accessor: "total_payments",
-      id: "total_payments",
-      Cell: ({ value }) => parseFloat(value || 0).toFixed(2),
+      header: "Total Payments",
+      accessorKey: "total_payments",
+      enableColumnFilter: false,
+      enableSorting: true,
+      cell: ({ row }) => {
+        return <>{parseFloat(row.original.total_payments || 0).toFixed(2)}</>;
+      },
     },
     {
-      Header: "Outstanding",
-      accessor: "outstanding",
-      id: "outstanding",
-      Cell: ({ value }) => {
-        const val = parseFloat(value || 0);
+      header: "Outstanding",
+      accessorKey: "outstanding",
+      enableColumnFilter: false,
+      enableSorting: true,
+      cell: ({ row }) => {
+        const val = parseFloat(row.original.outstanding || 0);
         return (
           <span className={val >= 0 ? "text-success" : "text-danger"}>
             {val.toFixed(2)}
@@ -129,14 +140,16 @@ const CustomerReport = () => {
       },
     },
     {
-      Header: "Invoice Count",
-      accessor: "invoice_count",
-      id: "invoice_count",
+      header: "Invoice Count",
+      accessorKey: "invoice_count",
+      enableColumnFilter: false,
+      enableSorting: true,
     },
     {
-      Header: "Payment Count",
-      accessor: "payment_count",
-      id: "payment_count",
+      header: "Payment Count",
+      accessorKey: "payment_count",
+      enableColumnFilter: false,
+      enableSorting: true,
     },
   ];
 
@@ -206,98 +219,119 @@ const CustomerReport = () => {
 
                   {report && !isLoading && (
                     <div>
-                      <Nav tabs>
-                        <NavItem>
-                          <NavLink
-                            className={activeTab === "1" ? "active" : ""}
-                            onClick={() => setActiveTab("1")}
-                          >
-                            Summary
-                          </NavLink>
-                        </NavItem>
-                        <NavItem>
-                          <NavLink
-                            className={activeTab === "2" ? "active" : ""}
-                            onClick={() => setActiveTab("2")}
-                          >
-                            Details
-                          </NavLink>
-                        </NavItem>
-                      </Nav>
+                      {(!report.summary || report.summary.length === 0) && (!report.details || Object.keys(report.details).length === 0) ? (
+                        <div className="alert alert-info">
+                          No data found for the selected date range.
+                        </div>
+                      ) : (
+                        <>
+                          <Nav tabs>
+                            <NavItem>
+                              <NavLink
+                                className={activeTab === "1" ? "active" : ""}
+                                onClick={() => setActiveTab("1")}
+                              >
+                                Summary
+                              </NavLink>
+                            </NavItem>
+                            <NavItem>
+                              <NavLink
+                                className={activeTab === "2" ? "active" : ""}
+                                onClick={() => setActiveTab("2")}
+                              >
+                                Details
+                              </NavLink>
+                            </NavItem>
+                          </Nav>
 
-                      <TabContent activeTab={activeTab}>
-                        <TabPane tabId="1">
-                          <Row>
-                            <Col>
-                              <Card>
-                                <CardBody>
-                                  <h5 className="mb-3">Customer Summary</h5>
-                                  <TableContainer
-                                    columns={summaryColumns}
-                                    data={report.summary || []}
-                                    isGlobalFilter={true}
-                                    isPagination={true}
-                                    isShowingPageSize={true}
-                                    paginationDiv="noPagination"
-                                    tableClass="table-hover dt-responsive nowrap w-100 dataTable no-footer dtr-inline"
-                                    theadClass="table-light"
-                                    pagination="pagination-rounded"
-                                  />
-                                  <div className="mt-3">
-                                    <strong>Total Outstanding: </strong>
-                                    <span className={report.total_outstanding >= 0 ? "text-success" : "text-danger"}>
-                                      {parseFloat(report.total_outstanding || 0).toFixed(2)}
-                                    </span>
-                                  </div>
-                                </CardBody>
-                              </Card>
-                            </Col>
-                          </Row>
-                        </TabPane>
+                          <TabContent activeTab={activeTab}>
+                            <TabPane tabId="1">
+                              <Row>
+                                <Col>
+                                  <Card>
+                                    <CardBody>
+                                      <h5 className="mb-3">Customer Summary</h5>
+                                      {report.summary && report.summary.length > 0 ? (
+                                        <>
+                                          <TableContainer
+                                            columns={summaryColumns}
+                                            data={report.summary}
+                                            isGlobalFilter={true}
+                                            isPagination={false}
+                                            tableClass="table-hover dt-responsive nowrap w-100 dataTable no-footer dtr-inline"
+                                            theadClass="table-light"
+                                          />
+                                          <div className="mt-3">
+                                            <strong>Total Outstanding: </strong>
+                                            <span className={report.total_outstanding >= 0 ? "text-success" : "text-danger"}>
+                                              {parseFloat(report.total_outstanding || 0).toFixed(2)}
+                                            </span>
+                                          </div>
+                                        </>
+                                      ) : (
+                                        <p>No summary data available.</p>
+                                      )}
+                                    </CardBody>
+                                  </Card>
+                                </Col>
+                              </Row>
+                            </TabPane>
 
-                        <TabPane tabId="2">
-                          <Row>
-                            <Col>
-                              <Card>
-                                <CardBody>
-                                  <h5 className="mb-3">Customer Details</h5>
-                                  {Object.keys(report.details || {}).map((peopleId) => {
-                                    const details = report.details[peopleId];
-                                    const person = people.find((p) => p.id === parseInt(peopleId));
-                                    return (
-                                      <div key={peopleId} className="mb-4">
-                                        <h6>{person ? person.name : `Customer ID: ${peopleId}`}</h6>
-                                        <Table striped>
-                                          <thead>
-                                            <tr>
-                                              <th>Date</th>
-                                              <th>Type</th>
-                                              <th>Invoice #</th>
-                                              <th>Description</th>
-                                              <th className="text-end">Amount</th>
-                                            </tr>
-                                          </thead>
-                                          <tbody>
-                                            {details.map((detail, index) => (
-                                              <tr key={index}>
-                                                <td>{moment(detail.transaction_date).format("YYYY-MM-DD")}</td>
-                                                <td>{detail.transaction_type}</td>
-                                                <td>{detail.invoice_no || "-"}</td>
-                                                <td>{detail.description}</td>
-                                                <td className="text-end">{detail.amount.toFixed(2)}</td>
-                                              </tr>
-                                            ))}
-                                          </tbody>
-                                        </Table>
-                                      </div>
-                                    );
-                                  })}
-                                </CardBody>
-                              </Card>
-                            </Col>
-                          </Row>
-                        </TabPane>
-                      </TabContent>
+                            <TabPane tabId="2">
+                              <Row>
+                                <Col>
+                                  <Card>
+                                    <CardBody>
+                                      <h5 className="mb-3">Customer Details</h5>
+                                      {report.details && Object.keys(report.details).length > 0 ? (
+                                        Object.keys(report.details).map((peopleId) => {
+                                          const details = report.details[peopleId];
+                                          const person = people.find((p) => p.id === parseInt(peopleId));
+                                          return (
+                                            <div key={peopleId} className="mb-4">
+                                              <h6>{person ? person.name : `Customer ID: ${peopleId}`}</h6>
+                                              <Table striped>
+                                                <thead>
+                                                  <tr>
+                                                    <th>Date</th>
+                                                    <th>Type</th>
+                                                    <th>Invoice #</th>
+                                                    <th>Description</th>
+                                                    <th className="text-end">Amount</th>
+                                                  </tr>
+                                                </thead>
+                                                <tbody>
+                                                  {details && details.length > 0 ? (
+                                                    details.map((detail, index) => (
+                                                      <tr key={index}>
+                                                        <td>{moment(detail.transaction_date).format("YYYY-MM-DD")}</td>
+                                                        <td>{detail.transaction_type}</td>
+                                                        <td>{detail.invoice_no || "-"}</td>
+                                                        <td>{detail.description}</td>
+                                                        <td className="text-end">{detail.amount.toFixed(2)}</td>
+                                                      </tr>
+                                                    ))
+                                                  ) : (
+                                                    <tr>
+                                                      <td colSpan="5" className="text-center">No details available</td>
+                                                    </tr>
+                                                  )}
+                                                </tbody>
+                                              </Table>
+                                            </div>
+                                          );
+                                        })
+                                      ) : (
+                                        <p>No details available.</p>
+                                      )}
+                                    </CardBody>
+                                  </Card>
+                                </Col>
+                              </Row>
+                            </TabPane>
+                          </TabContent>
+                        </>
+                      )}
                     </div>
                   )}
                 </CardBody>

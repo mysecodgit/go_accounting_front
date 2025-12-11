@@ -30,9 +30,9 @@ import InvoicePayments from "../pages/InvoicePayments";
 import SalesReceipts from "../pages/SalesReceipts";
 import Users from "../pages/Users";
 import BalanceSheet from "../pages/Reports/BalanceSheet";
+import TrialBalance from "../pages/Reports/TrialBalance";
 import CustomerReport from "../pages/Reports/CustomerReport";
 import VendorReport from "../pages/Reports/VendorReport";
-import TransactionDetails from "../pages/Reports/TransactionDetails";
 
 const authProtectedRoutes = [
   // Buildings list page (first page after login)
@@ -51,9 +51,9 @@ const authProtectedRoutes = [
   { path: "/building/:id/invoice-payments", component: <InvoicePayments /> },
   { path: "/building/:id/sales-receipts", component: <SalesReceipts /> },
   { path: "/building/:id/reports/balance-sheet", component: <BalanceSheet /> },
+  { path: "/building/:id/reports/trial-balance", component: <TrialBalance /> },
   { path: "/building/:id/reports/customers", component: <CustomerReport /> },
   { path: "/building/:id/reports/vendors", component: <VendorReport /> },
-  { path: "/building/:id/reports/transaction-details", component: <TransactionDetails /> },
   { path: "/building/:id/buildings", component: <Buildings /> },
 
   //profile

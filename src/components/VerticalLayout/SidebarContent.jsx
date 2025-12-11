@@ -233,6 +233,12 @@ const SidebarContent = (props) => {
                   </Link>
                 </li>
                 <li>
+                  <Link to={buildRoute("/reports/trial-balance")} className=" ">
+                    <i className="bx bx-calculator"></i>
+                    <span>{props.t("Trial Balance")}</span>
+                  </Link>
+                </li>
+                <li>
                   <Link to={buildRoute("/reports/customers")} className=" ">
                     <i className="bx bx-user"></i>
                     <span>{props.t("Customer Report")}</span>
@@ -242,12 +248,6 @@ const SidebarContent = (props) => {
                   <Link to={buildRoute("/reports/vendors")} className=" ">
                     <i className="bx bx-store"></i>
                     <span>{props.t("Vendor Report")}</span>
-                  </Link>
-                </li>
-                <li>
-                  <Link to={buildRoute("/reports/transaction-details")} className=" ">
-                    <i className="bx bx-list-ul"></i>
-                    <span>{props.t("Transaction Details")}</span>
                   </Link>
                 </li>
               </>

@@ -33,6 +33,7 @@ const VendorReport = () => {
   const [isLoading, setLoading] = useState(false);
   const [report, setReport] = useState(null);
   const [people, setPeople] = useState([]);
+  const [peopleTypes, setPeopleTypes] = useState([]);
   const [activeTab, setActiveTab] = useState("1");
 
   const validation = useFormik({
@@ -51,12 +52,38 @@ const VendorReport = () => {
     },
   });
 
+  const fetchPeopleTypes = async () => {
+    try {
+      const { data } = await axiosInstance.get("people-types");
+      setPeopleTypes(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error("Error fetching people types:", error);
+    }
+  };
+
   const fetchPeople = async () => {
     if (!buildingId) return;
     try {
       const url = `buildings/${buildingId}/people`;
       const { data } = await axiosInstance.get(url);
-      setPeople(data.people || []);
+      // People API returns an array directly, not wrapped in {people: [...]}
+      const allPeople = Array.isArray(data) ? data : [];
+      
+      // Filter for vendors only - find vendor type ID
+      const vendorType = peopleTypes.find(pt => 
+        pt.title && pt.title.toLowerCase().includes("vendor")
+      );
+      
+      if (vendorType) {
+        const vendors = allPeople.filter(p => 
+          (p.type && p.type.id === vendorType.id) || 
+          (p.type_id === vendorType.id)
+        );
+        setPeople(vendors);
+      } else {
+        // If vendor type not found, show all people (fallback)
+        setPeople(allPeople);
+      }
     } catch (error) {
       console.error("Error fetching people:", error);
     }
@@ -86,40 +113,55 @@ const VendorReport = () => {
 
   useEffect(() => {
     if (buildingId) {
-      fetchPeople();
-      fetchReport(validation.values);
+      fetchPeopleTypes();
     }
   }, [buildingId]);
 
+  useEffect(() => {
+    if (buildingId && peopleTypes.length > 0) {
+      fetchPeople();
+      fetchReport(validation.values);
+    }
+  }, [buildingId, peopleTypes]);
+
   const summaryColumns = [
     {
-      Header: "Vendor Name",
-      accessor: "people_name",
-      id: "people_name",
+      header: "Vendor Name",
+      accessorKey: "people_name",
+      enableColumnFilter: false,
+      enableSorting: true,
     },
     {
-      Header: "Type",
-      accessor: "people_type",
-      id: "people_type",
+      header: "Type",
+      accessorKey: "people_type",
+      enableColumnFilter: false,
+      enableSorting: true,
     },
     {
-      Header: "Total Invoices",
-      accessor: "total_invoices",
-      id: "total_invoices",
-      Cell: ({ value }) => parseFloat(value || 0).toFixed(2),
+      header: "Total Invoices",
+      accessorKey: "total_invoices",
+      enableColumnFilter: false,
+      enableSorting: true,
+      cell: ({ row }) => {
+        return <>{parseFloat(row.original.total_invoices || 0).toFixed(2)}</>;
+      },
     },
     {
-      Header: "Total Payments",
-      accessor: "total_payments",
-      id: "total_payments",
-      Cell: ({ value }) => parseFloat(value || 0).toFixed(2),
+      header: "Total Payments",
+      accessorKey: "total_payments",
+      enableColumnFilter: false,
+      enableSorting: true,
+      cell: ({ row }) => {
+        return <>{parseFloat(row.original.total_payments || 0).toFixed(2)}</>;
+      },
     },
     {
-      Header: "Outstanding",
-      accessor: "outstanding",
-      id: "outstanding",
-      Cell: ({ value }) => {
-        const val = parseFloat(value || 0);
+      header: "Outstanding",
+      accessorKey: "outstanding",
+      enableColumnFilter: false,
+      enableSorting: true,
+      cell: ({ row }) => {
+        const val = parseFloat(row.original.outstanding || 0);
         return (
           <span className={val >= 0 ? "text-success" : "text-danger"}>
             {val.toFixed(2)}
@@ -128,14 +170,16 @@ const VendorReport = () => {
       },
     },
     {
-      Header: "Invoice Count",
-      accessor: "invoice_count",
-      id: "invoice_count",
+      header: "Invoice Count",
+      accessorKey: "invoice_count",
+      enableColumnFilter: false,
+      enableSorting: true,
     },
     {
-      Header: "Payment Count",
-      accessor: "payment_count",
-      id: "payment_count",
+      header: "Payment Count",
+      accessorKey: "payment_count",
+      enableColumnFilter: false,
+      enableSorting: true,
     },
   ];
 
@@ -235,12 +279,9 @@ const VendorReport = () => {
                                     columns={summaryColumns}
                                     data={report.summary || []}
                                     isGlobalFilter={true}
-                                    isPagination={true}
-                                    isShowingPageSize={true}
-                                    paginationDiv="noPagination"
+                                    isPagination={false}
                                     tableClass="table-hover dt-responsive nowrap w-100 dataTable no-footer dtr-inline"
                                     theadClass="table-light"
-                                    pagination="pagination-rounded"
                                   />
                                   <div className="mt-3">
                                     <strong>Total Outstanding: </strong>
