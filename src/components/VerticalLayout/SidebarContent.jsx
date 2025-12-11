@@ -210,6 +210,46 @@ const SidebarContent = (props) => {
                     <span>{props.t("Invoices")}</span>
                   </Link>
                 </li>
+                {/* Invoice Payments */}
+                <li>
+                  <Link to={buildRoute("/invoice-payments")} className=" ">
+                    <i className="bx bx-credit-card"></i>
+                    <span>{props.t("Invoice Payments")}</span>
+                  </Link>
+                </li>
+                {/* Sales Receipts */}
+                <li>
+                  <Link to={buildRoute("/sales-receipts")} className=" ">
+                    <i className="bx bx-money"></i>
+                    <span>{props.t("Sales Receipts")}</span>
+                  </Link>
+                </li>
+
+                {/* Reports */}
+                <li>
+                  <Link to={buildRoute("/reports/balance-sheet")} className=" ">
+                    <i className="bx bx-bar-chart-alt-2"></i>
+                    <span>{props.t("Balance Sheet")}</span>
+                  </Link>
+                </li>
+                <li>
+                  <Link to={buildRoute("/reports/customers")} className=" ">
+                    <i className="bx bx-user"></i>
+                    <span>{props.t("Customer Report")}</span>
+                  </Link>
+                </li>
+                <li>
+                  <Link to={buildRoute("/reports/vendors")} className=" ">
+                    <i className="bx bx-store"></i>
+                    <span>{props.t("Vendor Report")}</span>
+                  </Link>
+                </li>
+                <li>
+                  <Link to={buildRoute("/reports/transaction-details")} className=" ">
+                    <i className="bx bx-list-ul"></i>
+                    <span>{props.t("Transaction Details")}</span>
+                  </Link>
+                </li>
               </>
             )}
 

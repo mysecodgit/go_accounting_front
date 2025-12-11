@@ -31,67 +31,61 @@ import "react-toastify/dist/ReactToastify.css";
 import axiosInstance from "../../services/axiosService";
 import moment from "moment/moment";
 
-const Invoices = () => {
-  document.title = "Invoices";
+const SalesReceipts = () => {
+  document.title = "Sales Receipts";
   const { id: buildingId } = useParams();
 
   const [isLoading, setLoading] = useState(false);
-  const [invoices, setInvoices] = useState([]);
+  const [receipts, setReceipts] = useState([]);
   const [activeTab, setActiveTab] = useState("1"); // "1" for list, "2" for create
   const [items, setItems] = useState([]);
   const [units, setUnits] = useState([]);
   const [people, setPeople] = useState([]);
   const [accounts, setAccounts] = useState([]);
-  const [arAccounts, setArAccounts] = useState([]);
-  const [invoiceItems, setInvoiceItems] = useState([]);
+  const [assetAccounts, setAssetAccounts] = useState([]);
+  const [receiptItems, setReceiptItems] = useState([]);
   const [splitsPreview, setSplitsPreview] = useState([]);
   const [showSplitsModal, setShowSplitsModal] = useState(false);
-  const [nextInvoiceNo, setNextInvoiceNo] = useState(1);
+  const [nextReceiptNo, setNextReceiptNo] = useState(1);
   const [userId, setUserId] = useState(1); // TODO: Get from auth context
 
   const validation = useFormik({
     enableReinitialize: true,
     initialValues: {
-      invoice_no: nextInvoiceNo,
-      sales_date: moment().format("YYYY-MM-DD"),
-      due_date: moment().add(30, "days").format("YYYY-MM-DD"),
+      receipt_no: nextReceiptNo,
+      receipt_date: moment().format("YYYY-MM-DD"),
       unit_id: "",
       people_id: "",
-      ar_account_id: "",
+      account_id: "",
       amount: 0,
       description: "",
-      refrence: "",
       status: 1,
       building_id: buildingId ? parseInt(buildingId) : "",
     },
     validationSchema: Yup.object({
-      invoice_no: Yup.number().required("Invoice number is required").min(1),
-      sales_date: Yup.date().required("Sales date is required"),
-      due_date: Yup.date().required("Due date is required"),
+      receipt_no: Yup.number().required("Receipt number is required").min(1),
+      receipt_date: Yup.date().required("Receipt date is required"),
       unit_id: Yup.number().required("Unit is required").min(1, "Please select a unit"),
       people_id: Yup.number().required("People/Customer is required").min(1, "Please select a people/customer"),
-      ar_account_id: Yup.number().required("A/R Account is required").min(1, "Please select an A/R account"),
+      account_id: Yup.number().required("Asset Account is required").min(1, "Please select an asset account"),
       amount: Yup.number().required("Amount is required"),
       description: Yup.string().required("Description is required"),
-      refrence: Yup.string().required("Reference is required"),
       status: Yup.number().oneOf([0, 1]),
       building_id: Yup.number().required("Building ID is required"),
     }),
     onSubmit: async (values) => {
       try {
         const payload = {
-          invoice_no: parseInt(values.invoice_no),
-          sales_date: values.sales_date,
-          due_date: values.due_date,
+          receipt_no: parseInt(values.receipt_no),
+          receipt_date: values.receipt_date,
           unit_id: values.unit_id ? parseInt(values.unit_id) : null,
           people_id: values.people_id ? parseInt(values.people_id) : null,
-          ar_account_id: values.ar_account_id ? parseInt(values.ar_account_id) : null,
+          account_id: values.account_id ? parseInt(values.account_id) : null,
           amount: parseFloat(values.amount),
           description: values.description,
-          refrence: values.refrence,
           status: parseInt(values.status),
           building_id: parseInt(values.building_id),
-          items: invoiceItems.map((item) => ({
+          items: receiptItems.map((item) => ({
             item_id: parseInt(item.item_id),
             qty: item.qty,
             rate: item.rate ? item.rate.toString() : null,
@@ -100,9 +94,9 @@ const Invoices = () => {
           })),
         };
 
-        let url = "invoices";
+        let url = "sales-receipts";
         if (buildingId) {
-          url = `buildings/${buildingId}/invoices`;
+          url = `buildings/${buildingId}/sales-receipts`;
         }
 
         // Add user_id to headers
@@ -113,14 +107,14 @@ const Invoices = () => {
         };
 
         const { data } = await axiosInstance.post(url, payload, config);
-        toast.success("Invoice created successfully");
+        toast.success("Sales receipt created successfully");
         validation.resetForm();
-        setInvoiceItems([]);
+        setReceiptItems([]);
         setSplitsPreview(null);
-        fetchNextInvoiceNo();
-        // Switch to list tab and refresh invoices
+        fetchNextReceiptNo();
+        // Switch to list tab and refresh receipts
         setActiveTab("1");
-        fetchInvoices();
+        fetchReceipts();
       } catch (err) {
         const errorMsg = err.response?.data?.error || err.response?.data?.errors || "Something went wrong";
         toast.error(typeof errorMsg === "object" ? JSON.stringify(errorMsg) : errorMsg);
@@ -176,39 +170,39 @@ const Invoices = () => {
       const { data } = await axiosInstance.get(url);
       setAccounts(data || []);
       
-      // Filter accounts for A/R accounts (Account Receivable)
-      const arAccountsList = (data || []).filter((account) => {
+      // Filter accounts for Asset accounts
+      const assetAccountsList = (data || []).filter((account) => {
         const typeName = account.account_type?.typeName || "";
-        return typeName.toLowerCase().includes("receivable") || 
-               typeName.toLowerCase().includes("account receivable") ||
-               typeName.toLowerCase().includes("ar");
+        return typeName.toLowerCase().includes("asset") || 
+               typeName.toLowerCase().includes("cash") ||
+               typeName.toLowerCase().includes("bank");
       });
-      setArAccounts(arAccountsList);
+      setAssetAccounts(assetAccountsList);
     } catch (error) {
       console.log("Error fetching accounts", error);
     }
   };
 
-  const fetchNextInvoiceNo = async () => {
+  const fetchNextReceiptNo = async () => {
     // This would typically come from the backend
     // For now, we'll use a simple increment
-    setNextInvoiceNo((prev) => prev + 1);
+    setNextReceiptNo((prev) => prev + 1);
   };
 
-  const fetchInvoices = async () => {
+  const fetchReceipts = async () => {
     try {
       setLoading(true);
-      let url = "invoices";
+      let url = "sales-receipts";
       if (buildingId) {
-        url = `buildings/${buildingId}/invoices`;
+        url = `buildings/${buildingId}/sales-receipts`;
       } else {
-        url = `invoices?building_id=${buildingId || ""}`;
+        url = `sales-receipts?building_id=${buildingId || ""}`;
       }
       const { data } = await axiosInstance.get(url);
-      setInvoices(data || []);
+      setReceipts(data || []);
     } catch (error) {
-      console.log("Error fetching invoices", error);
-      toast.error("Failed to fetch invoices");
+      console.log("Error fetching sales receipts", error);
+      toast.error("Failed to fetch sales receipts");
     } finally {
       setLoading(false);
     }
@@ -219,15 +213,15 @@ const Invoices = () => {
     fetchUnits();
     fetchPeople();
     fetchAccounts();
-    fetchNextInvoiceNo();
+    fetchNextReceiptNo();
     if (activeTab === "1") {
-      fetchInvoices();
+      fetchReceipts();
     }
   }, [buildingId, activeTab]);
 
-  const addInvoiceItem = () => {
-    setInvoiceItems([
-      ...invoiceItems,
+  const addReceiptItem = () => {
+    setReceiptItems([
+      ...receiptItems,
       {
         item_id: "",
         qty: 1,
@@ -240,15 +234,15 @@ const Invoices = () => {
     ]);
   };
 
-  const removeInvoiceItem = (index) => {
-    const newItems = invoiceItems.filter((_, i) => i !== index);
-    setInvoiceItems(newItems);
+  const removeReceiptItem = (index) => {
+    const newItems = receiptItems.filter((_, i) => i !== index);
+    setReceiptItems(newItems);
     calculateTotal(newItems);
     calculateSplits(newItems);
   };
 
-  const updateInvoiceItem = (index, field, value) => {
-    const newItems = [...invoiceItems];
+  const updateReceiptItem = (index, field, value) => {
+    const newItems = [...receiptItems];
     newItems[index][field] = value;
 
     // If item_id changed, update item_name and set current_value
@@ -302,32 +296,28 @@ const Invoices = () => {
       }
     }
 
-    setInvoiceItems(newItems);
+    setReceiptItems(newItems);
     calculateTotal(newItems);
     calculateSplits(newItems);
   };
 
   const calculateSplits = (itemsList) => {
-    if (itemsList.length === 0 || accounts.length === 0 || !validation.values.ar_account_id) {
+    if (itemsList.length === 0 || accounts.length === 0 || !validation.values.account_id) {
       setSplitsPreview({ splits: [], total_debit: 0, total_credit: 0, is_balanced: true });
       return;
     }
 
     const splits = [];
-    let totalAmount = 0;
-    let discountTotal = 0;
-    let paymentTotal = 0;
-    let serviceTotal = 0;
 
-    // Get selected A/R account
-    const arAccountId = validation.values.ar_account_id;
-    if (!arAccountId) {
+    // Get selected Asset account
+    const assetAccountId = validation.values.account_id;
+    if (!assetAccountId) {
       setSplitsPreview({ splits: [], total_debit: 0, total_credit: 0, is_balanced: true });
       return;
     }
     
-    const arAccount = accounts.find((a) => a.id === parseInt(arAccountId));
-    if (!arAccount) {
+    const assetAccount = accounts.find((a) => a.id === parseInt(assetAccountId));
+    if (!assetAccount) {
       setSplitsPreview({ splits: [], total_debit: 0, total_credit: 0, is_balanced: true });
       return;
     }
@@ -339,19 +329,17 @@ const Invoices = () => {
     let paymentAssetAccount = null;
     let serviceTotalAmount = 0;
 
-    itemsList.forEach((invoiceItem) => {
-      if (!invoiceItem.item_id) return;
+    itemsList.forEach((receiptItem) => {
+      if (!receiptItem.item_id) return;
 
-      const item = items.find((i) => i.id === parseInt(invoiceItem.item_id));
+      const item = items.find((i) => i.id === parseInt(receiptItem.item_id));
       if (!item) return;
 
-      const itemTotal = invoiceItem.total || 0;
+      const itemTotal = receiptItem.total || 0;
 
       if (item.type === "discount") {
         // Use absolute value for discount (even if rate is negative, use positive in splits)
         const discountAmount = Math.abs(itemTotal);
-        discountTotal += discountAmount;
-        totalAmount -= discountAmount; // Subtract from total
         // Get discount income account
         if (item.income_account?.id) {
           discountIncomeAccount = item.income_account;
@@ -359,8 +347,6 @@ const Invoices = () => {
       } else if (item.type === "payment") {
         // Use absolute value for payment (even if rate is negative, use positive in splits)
         const paymentAmount = Math.abs(itemTotal);
-        paymentTotal += paymentAmount;
-        totalAmount -= paymentAmount; // Subtract from total
         // Get payment asset account
         if (item.asset_account?.id) {
           paymentAssetAccount = item.asset_account;
@@ -387,35 +373,49 @@ const Invoices = () => {
       }
     });
 
+    // Calculate discount and payment totals
+    let discountTotal = 0;
+    let paymentTotal = 0;
+    itemsList.forEach((receiptItem) => {
+      if (!receiptItem.item_id) return;
+      const item = items.find((i) => i.id === parseInt(receiptItem.item_id));
+      if (!item) return;
+      if (item.type === "discount") {
+        discountTotal += Math.abs(receiptItem.total || 0);
+      } else if (item.type === "payment") {
+        paymentTotal += Math.abs(receiptItem.total || 0);
+      }
+    });
+
     // Get selected people name
     const selectedPeopleId = validation.values.people_id ? parseInt(validation.values.people_id) : null;
     const selectedPeople = selectedPeopleId ? people.find((p) => p.id === selectedPeopleId) : null;
     const peopleName = selectedPeople ? selectedPeople.name : null;
 
-    // Calculate A/R amount = service total - discount - payment
-    const arAmount = serviceTotalAmount - discountTotal - paymentTotal;
+    // Calculate Asset Account amount = service total - discount - payment
+    const assetAmount = serviceTotalAmount - discountTotal - paymentTotal;
 
-    // Debit or Credit: Accounts Receivable (depending on net amount)
-    if (arAmount > 0) {
-      // Net positive: debit A/R
+    // Debit or Credit: Asset Account (depending on net amount)
+    if (assetAmount > 0) {
+      // Net positive: debit asset account
       splits.push({
-        account_id: arAccount.id,
-        account_name: arAccount.account_name,
+        account_id: assetAccount.id,
+        account_name: assetAccount.account_name,
         people_id: selectedPeopleId,
         people_name: peopleName,
-        debit: arAmount,
+        debit: assetAmount,
         credit: null,
         status: "active",
       });
-    } else if (arAmount < 0) {
-      // Net negative: credit A/R (refund/reversal)
+    } else if (assetAmount < 0) {
+      // Net negative: credit asset account (refund/reversal)
       splits.push({
-        account_id: arAccount.id,
-        account_name: arAccount.account_name,
+        account_id: assetAccount.id,
+        account_name: assetAccount.account_name,
         people_id: selectedPeopleId,
         people_name: peopleName,
         debit: null,
-        credit: Math.abs(arAmount),
+        credit: Math.abs(assetAmount),
         status: "active",
       });
     }
@@ -504,33 +504,33 @@ const Invoices = () => {
     });
   };
 
-  const calculateTotal = (invoiceItemsList) => {
+  const calculateTotal = (receiptItemsList) => {
     let total = 0;
-    invoiceItemsList.forEach((invoiceItem) => {
-      if (!invoiceItem.item_id) {
-        total += invoiceItem.total || 0;
+    receiptItemsList.forEach((receiptItem) => {
+      if (!receiptItem.item_id) {
+        total += receiptItem.total || 0;
         return;
       }
-      const item = items.find((i) => i.id === parseInt(invoiceItem.item_id));
+      const item = items.find((i) => i.id === parseInt(receiptItem.item_id));
       if (!item) {
-        total += invoiceItem.total || 0;
+        total += receiptItem.total || 0;
         return;
       }
       
       if (item.type === "discount" || item.type === "payment") {
         // Subtract discount and payment amounts (they're stored as positive but should reduce total)
-        total -= Math.abs(invoiceItem.total || 0);
+        total -= Math.abs(receiptItem.total || 0);
       } else {
         // Add other items
-        total += invoiceItem.total || 0;
+        total += receiptItem.total || 0;
       }
     });
     validation.setFieldValue("amount", Math.max(0, total).toFixed(2));
-    calculateSplits(invoiceItemsList);
+    calculateSplits(receiptItemsList);
   };
 
   const previewSplits = () => {
-    if (invoiceItems.length === 0) {
+    if (receiptItems.length === 0) {
       toast.error("Please add at least one item");
       return;
     }
@@ -542,27 +542,18 @@ const Invoices = () => {
   const columns = useMemo(
     () => [
       {
-        header: "Invoice #",
-        accessorKey: "invoice_no",
+        header: "Receipt #",
+        accessorKey: "receipt_no",
         enableColumnFilter: false,
         enableSorting: true,
       },
       {
-        header: "Sales Date",
-        accessorKey: "sales_date",
+        header: "Receipt Date",
+        accessorKey: "receipt_date",
         enableColumnFilter: false,
         enableSorting: true,
         cell: (cell) => {
-          return <>{cell.row.original.sales_date ? moment(cell.row.original.sales_date).format("YYYY-MM-DD") : "N/A"}</>;
-        },
-      },
-      {
-        header: "Due Date",
-        accessorKey: "due_date",
-        enableColumnFilter: false,
-        enableSorting: true,
-        cell: (cell) => {
-          return <>{cell.row.original.due_date ? moment(cell.row.original.due_date).format("YYYY-MM-DD") : "N/A"}</>;
+          return <>{cell.row.original.receipt_date ? moment(cell.row.original.receipt_date).format("YYYY-MM-DD") : "N/A"}</>;
         },
       },
       {
@@ -634,18 +625,18 @@ const Invoices = () => {
     <React.Fragment>
       <div className="page-content">
         <Container fluid>
-          <Breadcrumbs title="Invoices" breadcrumbItem="Invoices" />
+          <Breadcrumbs title="Sales Receipts" breadcrumbItem="Sales Receipts" />
           <Nav tabs className="nav-tabs-custom">
             <NavItem>
               <NavLink
                 className={activeTab === "1" ? "active" : ""}
                 onClick={() => {
                   setActiveTab("1");
-                  fetchInvoices();
+                  fetchReceipts();
                 }}
                 style={{ cursor: "pointer" }}
               >
-                <i className="bx bx-list-ul me-1"></i> Invoice List
+                <i className="bx bx-list-ul me-1"></i> Receipt List
               </NavLink>
             </NavItem>
             <NavItem>
@@ -654,7 +645,7 @@ const Invoices = () => {
                 onClick={() => setActiveTab("2")}
                 style={{ cursor: "pointer" }}
               >
-                <i className="bx bx-plus-circle me-1"></i> Create Invoice
+                <i className="bx bx-plus-circle me-1"></i> Create Receipt
               </NavLink>
             </NavItem>
           </Nav>
@@ -669,7 +660,7 @@ const Invoices = () => {
                       <CardBody>
                         <TableContainer
                           columns={columns}
-                          data={invoices || []}
+                          data={receipts || []}
                           isGlobalFilter={true}
                           isPagination={false}
                           SearchPlaceholder="Search..."
@@ -703,49 +694,33 @@ const Invoices = () => {
                       <Row>
                         <Col md={6}>
                           <div className="mb-3">
-                            <Label>Invoice Number</Label>
+                            <Label>Receipt Number</Label>
                             <Input
-                              name="invoice_no"
+                              name="receipt_no"
                               type="number"
                               onChange={validation.handleChange}
                               onBlur={validation.handleBlur}
-                              value={validation.values.invoice_no || ""}
-                              invalid={validation.touched.invoice_no && validation.errors.invoice_no ? true : false}
+                              value={validation.values.receipt_no || ""}
+                              invalid={validation.touched.receipt_no && validation.errors.receipt_no ? true : false}
                             />
-                            {validation.touched.invoice_no && validation.errors.invoice_no ? (
-                              <FormFeedback type="invalid">{validation.errors.invoice_no}</FormFeedback>
+                            {validation.touched.receipt_no && validation.errors.receipt_no ? (
+                              <FormFeedback type="invalid">{validation.errors.receipt_no}</FormFeedback>
                             ) : null}
                           </div>
                         </Col>
                         <Col md={6}>
                           <div className="mb-3">
-                            <Label>Sales Date</Label>
+                            <Label>Receipt Date</Label>
                             <Input
-                              name="sales_date"
+                              name="receipt_date"
                               type="date"
                               onChange={validation.handleChange}
                               onBlur={validation.handleBlur}
-                              value={validation.values.sales_date || ""}
-                              invalid={validation.touched.sales_date && validation.errors.sales_date ? true : false}
+                              value={validation.values.receipt_date || ""}
+                              invalid={validation.touched.receipt_date && validation.errors.receipt_date ? true : false}
                             />
-                            {validation.touched.sales_date && validation.errors.sales_date ? (
-                              <FormFeedback type="invalid">{validation.errors.sales_date}</FormFeedback>
-                            ) : null}
-                          </div>
-                        </Col>
-                        <Col md={6}>
-                          <div className="mb-3">
-                            <Label>Due Date</Label>
-                            <Input
-                              name="due_date"
-                              type="date"
-                              onChange={validation.handleChange}
-                              onBlur={validation.handleBlur}
-                              value={validation.values.due_date || ""}
-                              invalid={validation.touched.due_date && validation.errors.due_date ? true : false}
-                            />
-                            {validation.touched.due_date && validation.errors.due_date ? (
-                              <FormFeedback type="invalid">{validation.errors.due_date}</FormFeedback>
+                            {validation.touched.receipt_date && validation.errors.receipt_date ? (
+                              <FormFeedback type="invalid">{validation.errors.receipt_date}</FormFeedback>
                             ) : null}
                           </div>
                         </Col>
@@ -797,24 +772,24 @@ const Invoices = () => {
                         </Col>
                         <Col md={6}>
                           <div className="mb-3">
-                            <Label>A/R Account <span className="text-danger">*</span></Label>
+                            <Label>Asset Account <span className="text-danger">*</span></Label>
                             <Input
-                              name="ar_account_id"
+                              name="account_id"
                               type="select"
                               onChange={validation.handleChange}
                               onBlur={validation.handleBlur}
-                              value={validation.values.ar_account_id || ""}
-                              invalid={validation.touched.ar_account_id && validation.errors.ar_account_id ? true : false}
+                              value={validation.values.account_id || ""}
+                              invalid={validation.touched.account_id && validation.errors.account_id ? true : false}
                             >
-                              <option value="">Select A/R Account</option>
-                              {arAccounts.map((account) => (
+                              <option value="">Select Asset Account</option>
+                              {assetAccounts.map((account) => (
                                 <option key={account.id} value={account.id}>
                                   {account.account_name} ({account.account_number})
                                 </option>
                               ))}
                             </Input>
-                            {validation.touched.ar_account_id && validation.errors.ar_account_id ? (
-                              <FormFeedback type="invalid">{validation.errors.ar_account_id}</FormFeedback>
+                            {validation.touched.account_id && validation.errors.account_id ? (
+                              <FormFeedback type="invalid">{validation.errors.account_id}</FormFeedback>
                             ) : null}
                           </div>
                         </Col>
@@ -853,30 +828,14 @@ const Invoices = () => {
                             ) : null}
                           </div>
                         </Col>
-                        <Col md={12}>
-                          <div className="mb-3">
-                            <Label>Reference</Label>
-                            <Input
-                              name="refrence"
-                              type="text"
-                              onChange={validation.handleChange}
-                              onBlur={validation.handleBlur}
-                              value={validation.values.refrence || ""}
-                              invalid={validation.touched.refrence && validation.errors.refrence ? true : false}
-                            />
-                            {validation.touched.refrence && validation.errors.refrence ? (
-                              <FormFeedback type="invalid">{validation.errors.refrence}</FormFeedback>
-                            ) : null}
-                          </div>
-                        </Col>
                       </Row>
 
                       <Row>
                         <Col md={12}>
                           <div className="mb-3">
                             <div className="d-flex justify-content-between align-items-center mb-2">
-                              <Label>Invoice Items</Label>
-                              <Button type="button" color="primary" size="sm" onClick={addInvoiceItem}>
+                              <Label>Receipt Items</Label>
+                              <Button type="button" color="primary" size="sm" onClick={addReceiptItem}>
                                 Add Item
                               </Button>
                             </div>
@@ -893,7 +852,7 @@ const Invoices = () => {
                                 </tr>
                               </thead>
                               <tbody>
-                                {invoiceItems.map((item, index) => {
+                                {receiptItems.map((item, index) => {
                                   const selectedItem = items.find((i) => i.id === parseInt(item.item_id));
                                   const isDiscountOrPayment = selectedItem && (selectedItem.type === "discount" || selectedItem.type === "payment");
                                   
@@ -903,7 +862,7 @@ const Invoices = () => {
                                         <Input
                                           type="select"
                                           value={item.item_id || ""}
-                                          onChange={(e) => updateInvoiceItem(index, "item_id", e.target.value)}
+                                          onChange={(e) => updateReceiptItem(index, "item_id", e.target.value)}
                                         >
                                           <option value="">Select Item</option>
                                           {items.map((i) => (
@@ -918,7 +877,7 @@ const Invoices = () => {
                                           type="number"
                                           step="0.01"
                                           value={item.previous_value !== null && item.previous_value !== undefined ? item.previous_value : ""}
-                                          onChange={(e) => updateInvoiceItem(index, "previous_value", e.target.value ? parseFloat(e.target.value) : null)}
+                                          onChange={(e) => updateReceiptItem(index, "previous_value", e.target.value ? parseFloat(e.target.value) : null)}
                                           placeholder="Optional"
                                         />
                                       </td>
@@ -927,7 +886,7 @@ const Invoices = () => {
                                           type="number"
                                           step="0.01"
                                           value={item.current_value !== null && item.current_value !== undefined ? item.current_value : ""}
-                                          onChange={(e) => updateInvoiceItem(index, "current_value", e.target.value ? parseFloat(e.target.value) : null)}
+                                          onChange={(e) => updateReceiptItem(index, "current_value", e.target.value ? parseFloat(e.target.value) : null)}
                                           placeholder="Optional"
                                         />
                                       </td>
@@ -946,7 +905,7 @@ const Invoices = () => {
                                             type="number"
                                             step="0.01"
                                             value={item.qty || ""}
-                                            onChange={(e) => updateInvoiceItem(index, "qty", parseFloat(e.target.value) || 0)}
+                                            onChange={(e) => updateReceiptItem(index, "qty", parseFloat(e.target.value) || 0)}
                                           />
                                         )}
                                       </td>
@@ -955,11 +914,11 @@ const Invoices = () => {
                                           type="number"
                                           step="0.01"
                                           value={item.rate || ""}
-                                          onChange={(e) => updateInvoiceItem(index, "rate", e.target.value)}
+                                          onChange={(e) => updateReceiptItem(index, "rate", e.target.value)}
                                           onBlur={(e) => {
                                             if (isDiscountOrPayment) {
                                               const rateValue = parseFloat(e.target.value) || 0;
-                                              updateInvoiceItem(index, "rate", (-Math.abs(rateValue)).toString());
+                                              updateReceiptItem(index, "rate", (-Math.abs(rateValue)).toString());
                                             }
                                           }}
                                           placeholder={isDiscountOrPayment ? "Enter amount (will be negative)" : ""}
@@ -971,7 +930,7 @@ const Invoices = () => {
                                           type="button"
                                           color="danger"
                                           size="sm"
-                                          onClick={() => removeInvoiceItem(index)}
+                                          onClick={() => removeReceiptItem(index)}
                                         >
                                           Remove
                                         </Button>
@@ -979,7 +938,7 @@ const Invoices = () => {
                                     </tr>
                                   );
                                 })}
-                                {invoiceItems.length === 0 && (
+                                {receiptItems.length === 0 && (
                                   <tr>
                                     <td colSpan="7" className="text-center">
                                       No items added. Click "Add Item" to add items.
@@ -1000,12 +959,12 @@ const Invoices = () => {
                               color="info"
                               className="me-2"
                               onClick={previewSplits}
-                              disabled={invoiceItems.length === 0 || !splitsPreview || splitsPreview.splits?.length === 0}
+                              disabled={receiptItems.length === 0 || !splitsPreview || splitsPreview.splits?.length === 0}
                             >
                               Preview Splits
                             </Button>
                             <Button type="submit" color="success">
-                              Create Invoice
+                              Create Receipt
                             </Button>
                           </div>
                         </Col>
@@ -1065,7 +1024,7 @@ const Invoices = () => {
                 </div>
               ) : (
                 <div className="text-center">
-                  <p>No splits to display. Please add items to the invoice.</p>
+                  <p>No splits to display. Please add items to the receipt.</p>
                   <Button color="secondary" onClick={() => setShowSplitsModal(false)}>
                     Close
                   </Button>
@@ -1080,5 +1039,5 @@ const Invoices = () => {
   );
 };
 
-export default Invoices;
+export default SalesReceipts;
 

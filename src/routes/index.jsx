@@ -26,7 +26,13 @@ import AccountTypes from "../pages/AccountTypes";
 import Accounts from "../pages/Accounts";
 import Items from "../pages/Items";
 import Invoices from "../pages/Invoices";
+import InvoicePayments from "../pages/InvoicePayments";
+import SalesReceipts from "../pages/SalesReceipts";
 import Users from "../pages/Users";
+import BalanceSheet from "../pages/Reports/BalanceSheet";
+import CustomerReport from "../pages/Reports/CustomerReport";
+import VendorReport from "../pages/Reports/VendorReport";
+import TransactionDetails from "../pages/Reports/TransactionDetails";
 
 const authProtectedRoutes = [
   // Buildings list page (first page after login)
@@ -42,6 +48,12 @@ const authProtectedRoutes = [
   { path: "/building/:id/accounts", component: <Accounts /> },
   { path: "/building/:id/items", component: <Items /> },
   { path: "/building/:id/invoices", component: <Invoices /> },
+  { path: "/building/:id/invoice-payments", component: <InvoicePayments /> },
+  { path: "/building/:id/sales-receipts", component: <SalesReceipts /> },
+  { path: "/building/:id/reports/balance-sheet", component: <BalanceSheet /> },
+  { path: "/building/:id/reports/customers", component: <CustomerReport /> },
+  { path: "/building/:id/reports/vendors", component: <VendorReport /> },
+  { path: "/building/:id/reports/transaction-details", component: <TransactionDetails /> },
   { path: "/building/:id/buildings", component: <Buildings /> },
 
   //profile
@@ -58,6 +70,8 @@ const authProtectedRoutes = [
   { path: "/accounts", component: <Accounts /> },
   { path: "/items", component: <Items /> },
   { path: "/invoices", component: <Invoices /> },
+  { path: "/invoice-payments", component: <InvoicePayments /> },
+  { path: "/sales-receipts", component: <SalesReceipts /> },
   { path: "/users", component: <Users /> },
   
   // Legacy routes
