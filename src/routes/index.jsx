@@ -24,6 +24,8 @@ import People from "../pages/People";
 import Periods from "../pages/Periods";
 import AccountTypes from "../pages/AccountTypes";
 import Accounts from "../pages/Accounts";
+import Items from "../pages/Items";
+import Invoices from "../pages/Invoices";
 import Users from "../pages/Users";
 
 const authProtectedRoutes = [
@@ -38,6 +40,8 @@ const authProtectedRoutes = [
   { path: "/building/:id/periods", component: <Periods /> },
   { path: "/building/:id/account-types", component: <AccountTypes /> },
   { path: "/building/:id/accounts", component: <Accounts /> },
+  { path: "/building/:id/items", component: <Items /> },
+  { path: "/building/:id/invoices", component: <Invoices /> },
   { path: "/building/:id/buildings", component: <Buildings /> },
 
   //profile
@@ -52,6 +56,8 @@ const authProtectedRoutes = [
   { path: "/periods", component: <Periods /> },
   { path: "/account-types", component: <AccountTypes /> },
   { path: "/accounts", component: <Accounts /> },
+  { path: "/items", component: <Items /> },
+  { path: "/invoices", component: <Invoices /> },
   { path: "/users", component: <Users /> },
   
   // Legacy routes

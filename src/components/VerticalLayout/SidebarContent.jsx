@@ -194,6 +194,22 @@ const SidebarContent = (props) => {
                     <span>{props.t("Accounts")}</span>
                   </Link>
                 </li>
+
+                {/* Items */}
+                <li>
+                  <Link to={buildRoute("/items")} className=" ">
+                    <i className="bx bx-package"></i>
+                    <span>{props.t("Items")}</span>
+                  </Link>
+                </li>
+
+                {/* Invoices */}
+                <li>
+                  <Link to={buildRoute("/invoices")} className=" ">
+                    <i className="bx bx-file"></i>
+                    <span>{props.t("Invoices")}</span>
+                  </Link>
+                </li>
               </>
             )}
 
