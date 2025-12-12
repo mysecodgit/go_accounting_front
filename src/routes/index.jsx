@@ -33,8 +33,15 @@ import BalanceSheet from "../pages/Reports/BalanceSheet";
 import TrialBalance from "../pages/Reports/TrialBalance";
 import CustomerReport from "../pages/Reports/CustomerReport";
 import VendorReport from "../pages/Reports/VendorReport";
+import TransactionDetailsByAccount from "../pages/Reports/TransactionDetailsByAccount";
 import CreateInvoice from "../pages/Invoices/CreateInvoice";
 import EditInvoice from "../pages/Invoices/EditInvoice";
+import CreateSalesReceipt from "../pages/SalesReceipts/CreateSalesReceipt";
+import EditSalesReceipt from "../pages/SalesReceipts/EditSalesReceipt";
+import Checks from "../pages/Checks";
+import CreateCheck from "../pages/Checks/CreateCheck";
+import Journals from "../pages/Journals";
+import CreateJournal from "../pages/Journals/CreateJournal";
 
 const authProtectedRoutes = [
   // Buildings list page (first page after login)
@@ -54,10 +61,19 @@ const authProtectedRoutes = [
   { path: "/building/:id/invoices/:invoiceId/edit", component: <EditInvoice /> },
   { path: "/building/:id/invoice-payments", component: <InvoicePayments /> },
   { path: "/building/:id/sales-receipts", component: <SalesReceipts /> },
+  { path: "/building/:id/sales-receipts/create", component: <CreateSalesReceipt /> },
+  { path: "/building/:id/sales-receipts/:receiptId/edit", component: <EditSalesReceipt /> },
+  { path: "/building/:id/checks", component: <Checks /> },
+  { path: "/building/:id/checks/create", component: <CreateCheck /> },
+  { path: "/building/:id/checks/:checkId/edit", component: <CreateCheck /> },
+  { path: "/building/:id/journals", component: <Journals /> },
+  { path: "/building/:id/journals/create", component: <CreateJournal /> },
+  { path: "/building/:id/journals/:journalId/edit", component: <CreateJournal /> },
   { path: "/building/:id/reports/balance-sheet", component: <BalanceSheet /> },
   { path: "/building/:id/reports/trial-balance", component: <TrialBalance /> },
   { path: "/building/:id/reports/customers", component: <CustomerReport /> },
   { path: "/building/:id/reports/vendors", component: <VendorReport /> },
+  { path: "/building/:id/reports/transaction-details-by-account", component: <TransactionDetailsByAccount /> },
   { path: "/building/:id/buildings", component: <Buildings /> },
 
   //profile

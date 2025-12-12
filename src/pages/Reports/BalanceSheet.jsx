@@ -178,7 +178,7 @@ const BalanceSheet = () => {
                                 </thead>
                                 <tbody>
                                   {balanceSheet.equity.accounts.map((account, index) => (
-                                    <tr key={index}>
+                                    <tr key={index} style={account.account_id === 0 ? { fontStyle: "italic" } : {}}>
                                       <td>{account.account_name}</td>
                                       <td className="text-end">{account.balance.toFixed(2)}</td>
                                     </tr>

@@ -114,12 +114,36 @@ const SidebarContent = (props) => {
     const items = ul.getElementsByTagName("a");
     removeActivation(items);
 
+    // First, try to find exact matches (skip dropdown parents with href="#")
     for (let i = 0; i < items.length; ++i) {
-      if (pathName === items[i].pathname) {
-        matchingMenuItem = items[i];
+      const item = items[i];
+      // Skip dropdown parent links (they have href="#" or has-arrow class)
+      if (item.getAttribute("href") === "#" || item.classList.contains("has-arrow")) {
+        continue;
+      }
+      // Match exact pathname
+      if (pathName === item.pathname) {
+        matchingMenuItem = item;
         break;
       }
     }
+
+    // If no exact match found, try partial matches (for nested routes)
+    if (!matchingMenuItem) {
+      for (let i = 0; i < items.length; ++i) {
+        const item = items[i];
+        // Skip dropdown parent links
+        if (item.getAttribute("href") === "#" || item.classList.contains("has-arrow")) {
+          continue;
+        }
+        // Check if current path starts with the item's pathname (for nested routes)
+        if (item.pathname && item.pathname !== "#" && pathName.startsWith(item.pathname)) {
+          matchingMenuItem = item;
+          break;
+        }
+      }
+    }
+
     if (matchingMenuItem) {
       activateParentDropdown(matchingMenuItem);
     }
@@ -153,107 +177,157 @@ const SidebarContent = (props) => {
       <SimpleBar className="h-100" ref={ref}>
         <div id="sidebar-menu">
           <ul className="metismenu list-unstyled" id="side-menu">
-            <li className="menu-title">{props.t("Menu")} </li>
             {buildingId && (
               <>
+                {/* Main */}
                 <li>
                   <Link to={buildRoute("/dashboard")} className=" ">
-                    <i className="bx bx-calendar"></i>
+                    <i className="bx bx-home-circle"></i>
                     <span>{props.t("Dashboard")}</span>
                   </Link>
                 </li>
 
-                {/* Units */}
+                {/* Setup */}
                 <li>
-                  <Link to={buildRoute("/units")} className=" ">
-                    <i className="bx bx-home"></i>
-                    <span>{props.t("Units")}</span>
+                  <Link to="#" className="has-arrow">
+                    <i className="bx bx-cog"></i>
+                    <span>{props.t("Setup")}</span>
                   </Link>
+                  <ul className="sub-menu" aria-expanded="false">
+                    <li>
+                      <Link to={buildRoute("/units")}>
+                        <i className="bx bx-home"></i>
+                        <span>{props.t("Units")}</span>
+                      </Link>
+                    </li>
+                    <li>
+                      <Link to={buildRoute("/people")}>
+                        <i className="bx bx-user"></i>
+                        <span>{props.t("People")}</span>
+                      </Link>
+                    </li>
+                    <li>
+                      <Link to={buildRoute("/periods")}>
+                        <i className="bx bx-calendar-check"></i>
+                        <span>{props.t("Periods")}</span>
+                      </Link>
+                    </li>
+                  </ul>
                 </li>
 
-                {/* People */}
+                {/* Accounting */}
                 <li>
-                  <Link to={buildRoute("/people")} className=" ">
-                    <i className="bx bx-user"></i>
-                    <span>{props.t("People")}</span>
-                  </Link>
-                </li>
-
-                {/* Periods */}
-                <li>
-                  <Link to={buildRoute("/periods")} className=" ">
-                    <i className="bx bx-calendar-check"></i>
-                    <span>{props.t("Periods")}</span>
-                  </Link>
-                </li>
-
-                {/* Accounts */}
-                <li>
-                  <Link to={buildRoute("/accounts")} className=" ">
+                  <Link to="#" className="has-arrow">
                     <i className="bx bx-wallet"></i>
-                    <span>{props.t("Accounts")}</span>
+                    <span>{props.t("Accounting")}</span>
                   </Link>
+                  <ul className="sub-menu" aria-expanded="false">
+                    <li>
+                      <Link to={buildRoute("/accounts")}>
+                        <i className="bx bx-wallet"></i>
+                        <span>{props.t("Accounts")}</span>
+                      </Link>
+                    </li>
+                    <li>
+                      <Link to={buildRoute("/items")}>
+                        <i className="bx bx-package"></i>
+                        <span>{props.t("Items")}</span>
+                      </Link>
+                    </li>
+                  </ul>
                 </li>
 
-                {/* Items */}
+                {/* Transactions */}
                 <li>
-                  <Link to={buildRoute("/items")} className=" ">
-                    <i className="bx bx-package"></i>
-                    <span>{props.t("Items")}</span>
+                  <Link to="#" className="has-arrow">
+                    <i className="bx bx-receipt"></i>
+                    <span>{props.t("Transactions")}</span>
                   </Link>
-                </li>
-
-                {/* Invoices */}
-                <li>
-                  <Link to={buildRoute("/invoices")} className=" ">
-                    <i className="bx bx-file"></i>
-                    <span>{props.t("Invoices")}</span>
-                  </Link>
-                </li>
-                {/* Invoice Payments */}
-                <li>
-                  <Link to={buildRoute("/invoice-payments")} className=" ">
-                    <i className="bx bx-credit-card"></i>
-                    <span>{props.t("Invoice Payments")}</span>
-                  </Link>
-                </li>
-                {/* Sales Receipts */}
-                <li>
-                  <Link to={buildRoute("/sales-receipts")} className=" ">
-                    <i className="bx bx-money"></i>
-                    <span>{props.t("Sales Receipts")}</span>
-                  </Link>
+                  <ul className="sub-menu" aria-expanded="false">
+                    <li>
+                      <Link to={buildRoute("/invoices")}>
+                        <i className="bx bx-file"></i>
+                        <span>{props.t("Invoices")}</span>
+                      </Link>
+                    </li>
+                    <li>
+                      <Link to={buildRoute("/invoice-payments")}>
+                        <i className="bx bx-credit-card"></i>
+                        <span>{props.t("Invoice Payments")}</span>
+                      </Link>
+                    </li>
+                    <li>
+                      <Link to={buildRoute("/sales-receipts")}>
+                        <i className="bx bx-money"></i>
+                        <span>{props.t("Sales Receipts")}</span>
+                      </Link>
+                    </li>
+                    <li>
+                      <Link to={buildRoute("/checks")}>
+                        <i className="bx bx-check-square"></i>
+                        <span>{props.t("Checks")}</span>
+                      </Link>
+                    </li>
+                    <li>
+                      <Link to={buildRoute("/journals")}>
+                        <i className="bx bx-book"></i>
+                        <span>{props.t("Journals")}</span>
+                      </Link>
+                    </li>
+                  </ul>
                 </li>
 
                 {/* Reports */}
                 <li>
-                  <Link to={buildRoute("/reports/balance-sheet")} className=" ">
+                  <Link to="#" className="has-arrow">
                     <i className="bx bx-bar-chart-alt-2"></i>
-                    <span>{props.t("Balance Sheet")}</span>
+                    <span>{props.t("Reports")}</span>
                   </Link>
+                  <ul className="sub-menu" aria-expanded="false">
+                    <li>
+                      <Link to={buildRoute("/reports/balance-sheet")}>
+                        <i className="bx bx-bar-chart-alt-2"></i>
+                        <span>{props.t("Balance Sheet")}</span>
+                      </Link>
+                    </li>
+                    <li>
+                      <Link to={buildRoute("/reports/trial-balance")}>
+                        <i className="bx bx-calculator"></i>
+                        <span>{props.t("Trial Balance")}</span>
+                      </Link>
+                    </li>
+                    <li>
+                      <Link to={buildRoute("/reports/customers")}>
+                        <i className="bx bx-user-circle"></i>
+                        <span>{props.t("Customer Report")}</span>
+                      </Link>
+                    </li>
+                    <li>
+                      <Link to={buildRoute("/reports/vendors")}>
+                        <i className="bx bx-store"></i>
+                        <span>{props.t("Vendor Report")}</span>
+                      </Link>
+                    </li>
+                    <li>
+                      <Link to={buildRoute("/reports/transaction-details-by-account")}>
+                        <i className="bx bx-list-ul"></i>
+                        <span>{props.t("Transaction Details by Account")}</span>
+                      </Link>
+                    </li>
+                  </ul>
                 </li>
+
+                {/* Administration */}
                 <li>
-                  <Link to={buildRoute("/reports/trial-balance")} className=" ">
-                    <i className="bx bx-calculator"></i>
-                    <span>{props.t("Trial Balance")}</span>
-                  </Link>
-                </li>
-                <li>
-                  <Link to={buildRoute("/reports/customers")} className=" ">
-                    <i className="bx bx-user"></i>
-                    <span>{props.t("Customer Report")}</span>
-                  </Link>
-                </li>
-                <li>
-                  <Link to={buildRoute("/reports/vendors")} className=" ">
-                    <i className="bx bx-store"></i>
-                    <span>{props.t("Vendor Report")}</span>
+                  <Link to="/buildings-list" className=" ">
+                    <i className="bx bx-building-house"></i>
+                    <span>{props.t("Switch Building")}</span>
                   </Link>
                 </li>
               </>
             )}
 
-            {/* Buildings List - shown when no building is selected */}
+            {/* Global Settings - shown when no building is selected */}
             {!buildingId && (
               <>
                 <li>
@@ -263,40 +337,33 @@ const SidebarContent = (props) => {
                   </Link>
                 </li>
                 
-                {/* Account Types */}
                 <li>
-                  <Link to="/account-types" className=" ">
-                    <i className="bx bx-list-ul"></i>
-                    <span>{props.t("Account Types")}</span>
+                  <Link to="#" className="has-arrow">
+                    <i className="bx bx-cog"></i>
+                    <span>{props.t("Settings")}</span>
                   </Link>
-                </li>
-                
-                {/* People Types */}
-                <li>
-                  <Link to="/people-types" className=" ">
-                    <i className="bx bx-group"></i>
-                    <span>{props.t("People Types")}</span>
-                  </Link>
-                </li>
-                
-                {/* Users */}
-                <li>
-                  <Link to="/users" className=" ">
-                    <i className="bx bx-user-circle"></i>
-                    <span>{props.t("Users")}</span>
-                  </Link>
+                  <ul className="sub-menu" aria-expanded="false">
+                    <li>
+                      <Link to="/account-types">
+                        <i className="bx bx-list-ul"></i>
+                        <span>{props.t("Account Types")}</span>
+                      </Link>
+                    </li>
+                    <li>
+                      <Link to="/people-types">
+                        <i className="bx bx-group"></i>
+                        <span>{props.t("People Types")}</span>
+                      </Link>
+                    </li>
+                    <li>
+                      <Link to="/users">
+                        <i className="bx bx-user-circle"></i>
+                        <span>{props.t("Users")}</span>
+                      </Link>
+                    </li>
+                  </ul>
                 </li>
               </>
-            )}
-            
-            {/* Switch Building */}
-            {buildingId && (
-              <li>
-                <Link to="/buildings-list" className=" ">
-                  <i className="bx bx-building-house"></i>
-                  <span>{props.t("Switch Building")}</span>
-                </Link>
-              </li>
             )}
 
             {/* Static sidebar content commented out */}
