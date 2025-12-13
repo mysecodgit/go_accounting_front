@@ -39,7 +39,7 @@ const CreateSalesReceipt = () => {
   const [receiptItems, setReceiptItems] = useState([]);
   const [splitsPreview, setSplitsPreview] = useState([]);
   const [showSplitsModal, setShowSplitsModal] = useState(false);
-  const [nextReceiptNo, setNextReceiptNo] = useState(1);
+  const [nextReceiptNo, setNextReceiptNo] = useState("1");
   const [userId, setUserId] = useState(1); // TODO: Get from auth context
 
   const validation = useFormik({
@@ -56,7 +56,7 @@ const CreateSalesReceipt = () => {
       building_id: buildingId ? parseInt(buildingId) : "",
     },
     validationSchema: Yup.object({
-      receipt_no: Yup.number().required("Receipt number is required").min(1),
+      receipt_no: Yup.string().required("Receipt number is required"),
       receipt_date: Yup.date().required("Receipt date is required"),
       unit_id: Yup.number().required("Unit is required").min(1, "Please select a unit"),
       people_id: Yup.number().required("People/Customer is required").min(1, "Please select a people/customer"),
@@ -69,7 +69,7 @@ const CreateSalesReceipt = () => {
     onSubmit: async (values) => {
       try {
         const payload = {
-          receipt_no: parseInt(values.receipt_no),
+          receipt_no: values.receipt_no,
           receipt_date: values.receipt_date,
           unit_id: values.unit_id ? parseInt(values.unit_id) : null,
           people_id: values.people_id ? parseInt(values.people_id) : null,
@@ -169,7 +169,16 @@ const CreateSalesReceipt = () => {
   };
 
   const fetchNextReceiptNo = async () => {
-    setNextReceiptNo((prev) => prev + 1);
+    try {
+      // Try to get next receipt number from backend
+      // For now, just increment as string
+      const currentNum = parseInt(nextReceiptNo) || 0;
+      setNextReceiptNo((currentNum + 1).toString());
+    } catch (error) {
+      console.log("Error fetching next receipt number", error);
+      const currentNum = parseInt(nextReceiptNo) || 0;
+      setNextReceiptNo((currentNum + 1).toString());
+    }
   };
 
   useEffect(() => {
@@ -476,7 +485,7 @@ const CreateSalesReceipt = () => {
                           <Label>Receipt Number</Label>
                           <Input
                             name="receipt_no"
-                            type="number"
+                            type="text"
                             onChange={validation.handleChange}
                             onBlur={validation.handleBlur}
                             value={validation.values.receipt_no || ""}

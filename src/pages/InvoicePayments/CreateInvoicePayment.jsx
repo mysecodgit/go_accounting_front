@@ -44,6 +44,7 @@ const CreateInvoicePayment = () => {
   const validation = useFormik({
     enableReinitialize: true,
     initialValues: {
+      reference: "",
       date: moment().format("YYYY-MM-DD"),
       invoice_id: "",
       account_id: "",
@@ -52,6 +53,7 @@ const CreateInvoicePayment = () => {
       building_id: buildingId ? parseInt(buildingId) : "",
     },
     validationSchema: Yup.object({
+      reference: Yup.string().required("Reference is required"),
       date: Yup.date().required("Date is required"),
       invoice_id: Yup.number().required("Invoice is required").min(1, "Please select an invoice"),
       account_id: Yup.number().required("Asset Account is required").min(1, "Please select an asset account"),
@@ -62,6 +64,7 @@ const CreateInvoicePayment = () => {
     onSubmit: async (values) => {
       try {
         const payload = {
+          reference: values.reference,
           date: values.date,
           invoice_id: parseInt(values.invoice_id),
           account_id: parseInt(values.account_id),
@@ -243,6 +246,22 @@ const CreateInvoicePayment = () => {
                     }}
                   >
                     <Row>
+                      <Col md={6}>
+                        <div className="mb-3">
+                          <Label>Reference <span className="text-danger">*</span></Label>
+                          <Input
+                            name="reference"
+                            type="text"
+                            onChange={validation.handleChange}
+                            onBlur={validation.handleBlur}
+                            value={validation.values.reference || ""}
+                            invalid={validation.touched.reference && validation.errors.reference ? true : false}
+                          />
+                          {validation.touched.reference && validation.errors.reference ? (
+                            <FormFeedback type="invalid">{validation.errors.reference}</FormFeedback>
+                          ) : null}
+                        </div>
+                      </Col>
                       <Col md={6}>
                         <div className="mb-3">
                           <Label>Date <span className="text-danger">*</span></Label>

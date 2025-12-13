@@ -48,6 +48,7 @@ const Invoices = () => {
   const [showPayModal, setShowPayModal] = useState(false);
   const [selectedInvoiceForPayment, setSelectedInvoiceForPayment] = useState(null);
   const [previousPayments, setPreviousPayments] = useState([]);
+  const [paymentReference, setPaymentReference] = useState("");
   const [paymentDate, setPaymentDate] = useState(moment().format("YYYY-MM-DD"));
   const [paymentAccountId, setPaymentAccountId] = useState("");
   const [paymentAmount, setPaymentAmount] = useState(0);
@@ -334,6 +335,7 @@ const Invoices = () => {
 
   const handlePayClick = useCallback(async (invoice) => {
     setSelectedInvoiceForPayment(invoice);
+    setPaymentReference("");
     setPaymentDate(moment().format("YYYY-MM-DD"));
     setPaymentAccountId("");
     
@@ -420,6 +422,7 @@ const Invoices = () => {
       }
 
       const payload = {
+        reference: paymentReference,
         invoice_id: selectedInvoiceForPayment.id,
         account_id: parseInt(paymentAccountId),
         amount: parseFloat(paymentAmount),
@@ -441,6 +444,7 @@ const Invoices = () => {
       await fetchPreviousPayments(selectedInvoiceForPayment.id);
       
       // Reset form
+      setPaymentReference("");
       setPaymentAmount(0);
       setPaymentAccountId("");
       setPaymentDate(moment().format("YYYY-MM-DD"));
@@ -778,10 +782,6 @@ const Invoices = () => {
                           <tr>
                             <td><strong>Description:</strong></td>
                             <td>{viewingInvoice.invoice?.description || viewingInvoice.description || "N/A"}</td>
-                          </tr>
-                          <tr>
-                            <td><strong>Reference:</strong></td>
-                            <td>{viewingInvoice.invoice?.refrence || viewingInvoice.refrence || "N/A"}</td>
                           </tr>
                           <tr>
                             <td><strong>Status:</strong></td>
@@ -1263,6 +1263,14 @@ const Invoices = () => {
                       <h6>Record New Payment</h6>
                       <Row className="mb-3">
                         <Col md={6}>
+                          <Label>Reference <span className="text-danger">*</span></Label>
+                          <Input
+                            type="text"
+                            value={paymentReference}
+                            onChange={(e) => setPaymentReference(e.target.value)}
+                          />
+                        </Col>
+                        <Col md={6}>
                           <Label>Date <span className="text-danger">*</span></Label>
                           <Input
                             type="date"
@@ -1270,6 +1278,8 @@ const Invoices = () => {
                             onChange={(e) => setPaymentDate(e.target.value)}
                           />
                         </Col>
+                      </Row>
+                      <Row className="mb-3">
                         <Col md={6}>
                           <Label>Asset Account (Cash/Bank) <span className="text-danger">*</span></Label>
                           <Input
@@ -1311,14 +1321,14 @@ const Invoices = () => {
                             color="info"
                             className="me-2"
                             onClick={previewPaymentSplits}
-                            disabled={!paymentAccountId || paymentAmount <= 0}
+                            disabled={!paymentReference || !paymentAccountId || paymentAmount <= 0}
                           >
                             <i className="bx bx-show"></i> Preview Splits
                           </Button>
                           <Button
                             color="success"
                             onClick={handleCreatePayment}
-                            disabled={!paymentAccountId || paymentAmount <= 0}
+                            disabled={!paymentReference || !paymentAccountId || paymentAmount <= 0}
                           >
                             <i className="bx bx-check"></i> Record Payment
                           </Button>

@@ -39,7 +39,7 @@ const EditSalesReceipt = () => {
   const [receiptItems, setReceiptItems] = useState([]);
   const [splitsPreview, setSplitsPreview] = useState([]);
   const [showSplitsModal, setShowSplitsModal] = useState(false);
-  const [nextReceiptNo, setNextReceiptNo] = useState(1);
+  const [nextReceiptNo, setNextReceiptNo] = useState("1");
   const [userId, setUserId] = useState(1); // TODO: Get from auth context
 
   const validation = useFormik({
@@ -56,7 +56,7 @@ const EditSalesReceipt = () => {
       building_id: buildingId ? parseInt(buildingId) : "",
     },
     validationSchema: Yup.object({
-      receipt_no: Yup.number().required("Receipt number is required").min(1),
+      receipt_no: Yup.string().required("Receipt number is required"),
       receipt_date: Yup.date().required("Receipt date is required"),
       unit_id: Yup.number().required("Unit is required").min(1, "Please select a unit"),
       people_id: Yup.number().required("People/Customer is required").min(1, "Please select a people/customer"),
@@ -70,7 +70,7 @@ const EditSalesReceipt = () => {
       try {
         const payload = {
           id: parseInt(receiptId),
-          receipt_no: parseInt(values.receipt_no),
+          receipt_no: values.receipt_no,
           receipt_date: values.receipt_date,
           unit_id: values.unit_id ? parseInt(values.unit_id) : null,
           people_id: values.people_id ? parseInt(values.people_id) : null,
@@ -190,7 +190,7 @@ const EditSalesReceipt = () => {
       };
       
       validation.setValues({
-        receipt_no: receiptData.receipt_no || nextReceiptNo,
+        receipt_no: receiptData.receipt_no ? receiptData.receipt_no.toString() : nextReceiptNo,
         receipt_date: formatDate(receiptData.receipt_date),
         unit_id: receiptData.unit_id ? receiptData.unit_id.toString() : "",
         people_id: receiptData.people_id ? receiptData.people_id.toString() : "",
@@ -532,7 +532,7 @@ const EditSalesReceipt = () => {
                           <Label>Receipt Number</Label>
                           <Input
                             name="receipt_no"
-                            type="number"
+                            type="text"
                             onChange={validation.handleChange}
                             onBlur={validation.handleBlur}
                             value={validation.values.receipt_no || ""}

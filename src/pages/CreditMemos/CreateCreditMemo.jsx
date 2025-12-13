@@ -43,6 +43,7 @@ const CreateCreditMemo = () => {
   const validation = useFormik({
     enableReinitialize: true,
     initialValues: {
+      reference: "",
       date: moment().format("YYYY-MM-DD"),
       deposit_to: "",
       liability_account: "",
@@ -53,6 +54,7 @@ const CreateCreditMemo = () => {
       building_id: buildingId ? parseInt(buildingId) : "",
     },
     validationSchema: Yup.object({
+      reference: Yup.string().required("Reference is required"),
       date: Yup.date().required("Date is required"),
       deposit_to: Yup.number().required("Deposit to account is required").min(1, "Please select a deposit account"),
       liability_account: Yup.number().required("Liability account is required").min(1, "Please select a liability account"),
@@ -65,6 +67,7 @@ const CreateCreditMemo = () => {
     onSubmit: async (values) => {
       try {
         const payload = {
+          reference: values.reference,
           date: values.date,
           deposit_to: parseInt(values.deposit_to),
           liability_account: parseInt(values.liability_account),
@@ -169,6 +172,7 @@ const CreateCreditMemo = () => {
       const { data: creditMemoResponse } = await axiosInstance.get(url);
       const creditMemo = creditMemoResponse.credit_memo || creditMemoResponse;
       validation.setValues({
+        reference: creditMemo.reference || creditMemo.Reference || "",
         date: creditMemo.date ? moment(creditMemo.date).format("YYYY-MM-DD") : moment().format("YYYY-MM-DD"),
         deposit_to: creditMemo.deposit_to || "",
         liability_account: creditMemo.liability_account || "",
@@ -268,6 +272,22 @@ const CreateCreditMemo = () => {
                     <Row className="mb-3">
                       <Col md={6}>
                         <Label>
+                          Reference <span className="text-danger">*</span>
+                        </Label>
+                        <Input
+                          name="reference"
+                          type="text"
+                          onChange={validation.handleChange}
+                          onBlur={validation.handleBlur}
+                          value={validation.values.reference}
+                          invalid={validation.touched.reference && validation.errors.reference ? true : false}
+                        />
+                        {validation.touched.reference && validation.errors.reference ? (
+                          <FormFeedback type="invalid">{validation.errors.reference}</FormFeedback>
+                        ) : null}
+                      </Col>
+                      <Col md={6}>
+                        <Label>
                           Date <span className="text-danger">*</span>
                         </Label>
                         <Input
@@ -282,6 +302,8 @@ const CreateCreditMemo = () => {
                           <FormFeedback type="invalid">{validation.errors.date}</FormFeedback>
                         ) : null}
                       </Col>
+                    </Row>
+                    <Row className="mb-3">
                       <Col md={6}>
                         <Label>
                           Amount <span className="text-danger">*</span>

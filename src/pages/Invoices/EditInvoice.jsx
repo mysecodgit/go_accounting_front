@@ -39,7 +39,7 @@ const EditInvoice = () => {
   const [invoiceItems, setInvoiceItems] = useState([]);
   const [splitsPreview, setSplitsPreview] = useState([]);
   const [showSplitsModal, setShowSplitsModal] = useState(false);
-  const [nextInvoiceNo, setNextInvoiceNo] = useState(1);
+  const [nextInvoiceNo, setNextInvoiceNo] = useState("1");
   const [userId, setUserId] = useState(1); // TODO: Get from auth context
 
   const validation = useFormik({
@@ -53,12 +53,11 @@ const EditInvoice = () => {
       ar_account_id: "",
       amount: 0,
       description: "",
-      refrence: "",
       status: 1,
       building_id: buildingId ? parseInt(buildingId) : "",
     },
     validationSchema: Yup.object({
-      invoice_no: Yup.number().required("Invoice number is required").min(1),
+      invoice_no: Yup.string().required("Invoice number is required"),
       sales_date: Yup.date().required("Sales date is required"),
       due_date: Yup.date().required("Due date is required"),
       unit_id: Yup.number().required("Unit is required").min(1, "Please select a unit"),
@@ -66,7 +65,6 @@ const EditInvoice = () => {
       ar_account_id: Yup.number().required("A/R Account is required").min(1, "Please select an A/R account"),
       amount: Yup.number().required("Amount is required"),
       description: Yup.string().required("Description is required"),
-      refrence: Yup.string().required("Reference is required"),
       status: Yup.number().oneOf([0, 1]),
       building_id: Yup.number().required("Building ID is required"),
     }),
@@ -74,7 +72,7 @@ const EditInvoice = () => {
       try {
         const payload = {
           id: parseInt(invoiceId),
-          invoice_no: parseInt(values.invoice_no),
+          invoice_no: values.invoice_no,
           sales_date: values.sales_date,
           due_date: values.due_date,
           unit_id: values.unit_id ? parseInt(values.unit_id) : null,
@@ -82,7 +80,6 @@ const EditInvoice = () => {
           ar_account_id: values.ar_account_id ? parseInt(values.ar_account_id) : null,
           amount: parseFloat(values.amount),
           description: values.description,
-          refrence: values.refrence,
           status: parseInt(values.status),
           building_id: parseInt(values.building_id),
           items: invoiceItems.map((item) => ({
@@ -148,7 +145,12 @@ const EditInvoice = () => {
         url = `buildings/${buildingId}/people`;
       }
       const { data } = await axiosInstance.get(url);
-      setPeople(data || []);
+      // Filter to only customers
+      const customers = (data || []).filter((person) => {
+        const typeTitle = person.people_type?.title || person.type?.title || "";
+        return typeTitle.toLowerCase() === "customer";
+      });
+      setPeople(customers);
     } catch (error) {
       console.log("Error fetching people", error);
     }
@@ -196,7 +198,7 @@ const EditInvoice = () => {
       };
       
       validation.setValues({
-        invoice_no: invoiceData.invoice_no || nextInvoiceNo,
+        invoice_no: invoiceData.invoice_no ? invoiceData.invoice_no.toString() : nextInvoiceNo,
         sales_date: formatDate(invoiceData.sales_date),
         due_date: formatDate(invoiceData.due_date),
         unit_id: invoiceData.unit_id ? invoiceData.unit_id.toString() : "",
@@ -204,7 +206,6 @@ const EditInvoice = () => {
         ar_account_id: invoiceData.ar_account_id ? invoiceData.ar_account_id.toString() : "",
         amount: invoiceData.amount || 0,
         description: invoiceData.description || "",
-        refrence: invoiceData.refrence || "",
         status: invoiceData.status !== undefined ? invoiceData.status : 1,
         building_id: invoiceData.building_id || (buildingId ? parseInt(buildingId) : ""),
       });
@@ -409,8 +410,8 @@ const EditInvoice = () => {
       splits.push({
         account_id: discountIncomeAccount.id,
         account_name: discountIncomeAccount.account_name || "Discount Income",
-        people_id: selectedPeopleId,
-        people_name: peopleName,
+        people_id: null, // Only AR account gets people_id
+        people_name: null,
         debit: discountTotal,
         credit: null,
         status: "active",
@@ -421,8 +422,8 @@ const EditInvoice = () => {
       splits.push({
         account_id: paymentAssetAccount.id,
         account_name: paymentAssetAccount.account_name || "Payment Asset",
-        people_id: selectedPeopleId,
-        people_name: peopleName,
+        people_id: null, // Only AR account gets people_id
+        people_name: null,
         debit: paymentTotal,
         credit: null,
         status: "active",
@@ -435,8 +436,8 @@ const EditInvoice = () => {
         splits.push({
           account_id: parseInt(accountId),
           account_name: account.account_name,
-          people_id: selectedPeopleId,
-          people_name: peopleName,
+          people_id: null, // Only AR account gets people_id
+          people_name: null,
           debit: null,
           credit: serviceIncomeByAccount[accountId],
           status: "active",
@@ -450,8 +451,8 @@ const EditInvoice = () => {
         splits.push({
           account_id: parseInt(accountId),
           account_name: account.account_name,
-          people_id: selectedPeopleId,
-          people_name: peopleName,
+          people_id: null, // Only AR account gets people_id
+          people_name: null,
           debit: serviceDebitByAccount[accountId],
           credit: null,
           status: "active",
@@ -540,7 +541,7 @@ const EditInvoice = () => {
                           <Label>Invoice Number</Label>
                           <Input
                             name="invoice_no"
-                            type="number"
+                            type="text"
                             onChange={validation.handleChange}
                             onBlur={validation.handleBlur}
                             value={validation.values.invoice_no || ""}
@@ -684,22 +685,6 @@ const EditInvoice = () => {
                           />
                           {validation.touched.description && validation.errors.description ? (
                             <FormFeedback type="invalid">{validation.errors.description}</FormFeedback>
-                          ) : null}
-                        </div>
-                      </Col>
-                      <Col md={12}>
-                        <div className="mb-3">
-                          <Label>Reference</Label>
-                          <Input
-                            name="refrence"
-                            type="text"
-                            onChange={validation.handleChange}
-                            onBlur={validation.handleBlur}
-                            value={validation.values.refrence || ""}
-                            invalid={validation.touched.refrence && validation.errors.refrence ? true : false}
-                          />
-                          {validation.touched.refrence && validation.errors.refrence ? (
-                            <FormFeedback type="invalid">{validation.errors.refrence}</FormFeedback>
                           ) : null}
                         </div>
                       </Col>

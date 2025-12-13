@@ -42,6 +42,7 @@ const EditInvoicePayment = () => {
   const validation = useFormik({
     enableReinitialize: true,
     initialValues: {
+      reference: "",
       date: moment().format("YYYY-MM-DD"),
       account_id: "",
       amount: 0,
@@ -49,6 +50,7 @@ const EditInvoicePayment = () => {
       building_id: buildingId ? parseInt(buildingId) : "",
     },
     validationSchema: Yup.object({
+      reference: Yup.string().required("Reference is required"),
       date: Yup.date().required("Date is required"),
       account_id: Yup.number().required("Asset Account is required").min(1, "Please select an asset account"),
       amount: Yup.number().required("Amount is required").min(0.01, "Amount must be greater than 0"),
@@ -58,6 +60,7 @@ const EditInvoicePayment = () => {
     onSubmit: async (values) => {
       try {
         const payload = {
+          reference: values.reference,
           date: values.date,
           account_id: parseInt(values.account_id),
           amount: parseFloat(values.amount),
@@ -168,6 +171,9 @@ const EditInvoicePayment = () => {
         paymentStatus = 1; // Default to active
       }
       
+      // Handle reference
+      const reference = payment.reference || payment.Reference || "";
+      
       // Handle account_id
       const accountId = payment.account_id || payment.AccountID || "";
       
@@ -175,6 +181,7 @@ const EditInvoicePayment = () => {
       const amount = payment.amount || payment.Amount || 0;
       
       console.log("Setting form values:", {
+        reference: reference,
         date: paymentDate,
         account_id: accountId,
         amount: amount,
@@ -182,6 +189,7 @@ const EditInvoicePayment = () => {
       });
       
       validation.setValues({
+        reference: reference,
         date: paymentDate,
         account_id: accountId,
         amount: amount,
@@ -326,6 +334,22 @@ const EditInvoicePayment = () => {
                     }}
                   >
                     <Row>
+                      <Col md={6}>
+                        <div className="mb-3">
+                          <Label>Reference <span className="text-danger">*</span></Label>
+                          <Input
+                            name="reference"
+                            type="text"
+                            onChange={validation.handleChange}
+                            onBlur={validation.handleBlur}
+                            value={validation.values.reference || ""}
+                            invalid={validation.touched.reference && validation.errors.reference ? true : false}
+                          />
+                          {validation.touched.reference && validation.errors.reference ? (
+                            <FormFeedback type="invalid">{validation.errors.reference}</FormFeedback>
+                          ) : null}
+                        </div>
+                      </Col>
                       <Col md={6}>
                         <div className="mb-3">
                           <Label>Date <span className="text-danger">*</span></Label>

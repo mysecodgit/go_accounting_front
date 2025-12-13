@@ -205,6 +205,7 @@ const TransactionDetailsByAccount = () => {
                         <thead className="table-light">
                           <tr>
                             <th>Date</th>
+                            <th>Transaction #</th>
                             <th>Type</th>
                             <th>Account</th>
                             <th>People</th>
@@ -220,7 +221,7 @@ const TransactionDetailsByAccount = () => {
                               // Total row for account
                               return (
                                 <tr key={`total-${accountDetail.account_id}-${accountIndex}`} style={{ backgroundColor: "#f8f9fa", fontWeight: "bold" }}>
-                                  <td colSpan="5" className="text-end">
+                                  <td colSpan="6" className="text-end">
                                     TOTAL
                                   </td>
                                   <td className="text-end">{parseFloat(accountDetail.total_debit || 0).toFixed(2)}</td>
@@ -234,7 +235,7 @@ const TransactionDetailsByAccount = () => {
                                 <React.Fragment key={`account-${accountDetail.account_id}-${accountIndex}`}>
                                   {/* Account Header */}
                                   <tr style={{ backgroundColor: "#e9ecef", fontWeight: "bold" }}>
-                                    <td colSpan="8">
+                                    <td colSpan="9">
                                       {accountDetail.account_name} ({accountDetail.account_number}) - {accountDetail.account_type}
                                     </td>
                                   </tr>
@@ -242,6 +243,7 @@ const TransactionDetailsByAccount = () => {
                                   {accountDetail.splits.map((split, splitIndex) => (
                                     <tr key={`split-${split.split_id}-${splitIndex}`}>
                                       <td>{moment(split.transaction_date).format("YYYY-MM-DD")}</td>
+                                      <td>{split.transaction_number || "N/A"}</td>
                                       <td>{split.transaction_type}</td>
                                       <td></td>
                                       <td>{split.people_name || (split.people_id ? `ID: ${split.people_id}` : "N/A")}</td>
@@ -258,7 +260,7 @@ const TransactionDetailsByAccount = () => {
                         </tbody>
                         <tfoot>
                           <tr style={{ backgroundColor: "#f8f9fa", fontWeight: "bold" }}>
-                            <td colSpan="5" className="text-end">Grand Total</td>
+                            <td colSpan="6" className="text-end">Grand Total</td>
                             <td className="text-end">{parseFloat(report.grand_total_debit || 0).toFixed(2)}</td>
                             <td className="text-end">{parseFloat(report.grand_total_credit || 0).toFixed(2)}</td>
                             <td></td>

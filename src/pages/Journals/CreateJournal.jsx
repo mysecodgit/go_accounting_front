@@ -42,12 +42,14 @@ const CreateJournal = () => {
   const validation = useFormik({
     enableReinitialize: true,
     initialValues: {
+      reference: "",
       journal_date: moment().format("YYYY-MM-DD"),
       memo: "",
       total_amount: 0,
       building_id: buildingId ? parseInt(buildingId) : "",
     },
     validationSchema: Yup.object({
+      reference: Yup.string().required("Reference is required"),
       journal_date: Yup.date().required("Journal date is required"),
       total_amount: Yup.number().min(0, "Total amount cannot be negative"),
       building_id: Yup.number().required("Building ID is required"),
@@ -60,6 +62,7 @@ const CreateJournal = () => {
         }
 
         const payload = {
+          reference: values.reference,
           journal_date: values.journal_date,
           memo: values.memo || null,
           total_amount: parseFloat(values.total_amount),
@@ -150,6 +153,7 @@ const CreateJournal = () => {
       const { data: journalResponse } = await axiosInstance.get(url);
       const journal = journalResponse.journal || journalResponse;
       validation.setValues({
+        reference: journal.reference || journal.Reference || "",
         journal_date: journal.journal_date ? moment(journal.journal_date).format("YYYY-MM-DD") : moment().format("YYYY-MM-DD"),
         memo: journal.memo || "",
         total_amount: journal.total_amount || 0,
@@ -334,6 +338,22 @@ const CreateJournal = () => {
                     }}
                   >
                     <Row>
+                      <Col md={6}>
+                        <div className="mb-3">
+                          <Label>Reference <span className="text-danger">*</span></Label>
+                          <Input
+                            name="reference"
+                            type="text"
+                            onChange={validation.handleChange}
+                            onBlur={validation.handleBlur}
+                            value={validation.values.reference || ""}
+                            invalid={validation.touched.reference && validation.errors.reference ? true : false}
+                          />
+                          {validation.touched.reference && validation.errors.reference ? (
+                            <FormFeedback type="invalid">{validation.errors.reference}</FormFeedback>
+                          ) : null}
+                        </div>
+                      </Col>
                       <Col md={6}>
                         <div className="mb-3">
                           <Label>Journal Date <span className="text-danger">*</span></Label>

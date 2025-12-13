@@ -33,9 +33,9 @@ import SalesReceipts from "../pages/SalesReceipts";
 import Users from "../pages/Users";
 import BalanceSheet from "../pages/Reports/BalanceSheet";
 import TrialBalance from "../pages/Reports/TrialBalance";
-import CustomerReport from "../pages/Reports/CustomerReport";
-import VendorReport from "../pages/Reports/VendorReport";
 import TransactionDetailsByAccount from "../pages/Reports/TransactionDetailsByAccount";
+import CustomerBalanceSummary from "../pages/Reports/CustomerBalanceSummary";
+import CustomerBalanceDetails from "../pages/Reports/CustomerBalanceDetails";
 import CreateInvoice from "../pages/Invoices/CreateInvoice";
 import EditInvoice from "../pages/Invoices/EditInvoice";
 import CreateSalesReceipt from "../pages/SalesReceipts/CreateSalesReceipt";
@@ -80,9 +80,9 @@ const authProtectedRoutes = [
   { path: "/building/:id/journals/:journalId/edit", component: <CreateJournal /> },
   { path: "/building/:id/reports/balance-sheet", component: <BalanceSheet /> },
   { path: "/building/:id/reports/trial-balance", component: <TrialBalance /> },
-  { path: "/building/:id/reports/customers", component: <CustomerReport /> },
-  { path: "/building/:id/reports/vendors", component: <VendorReport /> },
   { path: "/building/:id/reports/transaction-details-by-account", component: <TransactionDetailsByAccount /> },
+  { path: "/building/:id/reports/customer-balance-summary", component: <CustomerBalanceSummary /> },
+  { path: "/building/:id/reports/customer-balance-details", component: <CustomerBalanceDetails /> },
   { path: "/building/:id/buildings", component: <Buildings /> },
 
   //profile
