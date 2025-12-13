@@ -549,6 +549,7 @@ const CreateJournal = () => {
                   <tr>
                     <th>Account</th>
                     <th>People</th>
+                    <th>Unit</th>
                     <th>Debit</th>
                     <th>Credit</th>
                   </tr>
@@ -557,10 +558,12 @@ const CreateJournal = () => {
                   {splitsPreview.splits?.map((split, index) => {
                     const account = accounts.find((a) => a.id === split.account_id);
                     const person = split.people_id ? people.find((p) => p.id === split.people_id) : null;
+                    const unit = split.unit_id ? units.find((u) => u.id === split.unit_id) : null;
                     return (
                       <tr key={index}>
                         <td>{account ? `${account.account_name} (${account.account_number})` : `ID: ${split.account_id}`}</td>
                         <td>{person ? person.name : split.people_id ? `ID: ${split.people_id}` : "N/A"}</td>
+                        <td>{unit ? unit.name : split.unit_id ? `ID: ${split.unit_id}` : "N/A"}</td>
                         <td>{split.debit ? parseFloat(split.debit).toFixed(2) : "-"}</td>
                         <td>{split.credit ? parseFloat(split.credit).toFixed(2) : "-"}</td>
                       </tr>
@@ -569,12 +572,12 @@ const CreateJournal = () => {
                 </tbody>
                 <tfoot>
                   <tr style={{ fontWeight: "bold", backgroundColor: "#f8f9fa" }}>
-                    <td colSpan="2">Total</td>
+                    <td colSpan="3">Total</td>
                     <td>{parseFloat(splitsPreview.total_debit || 0).toFixed(2)}</td>
                     <td>{parseFloat(splitsPreview.total_credit || 0).toFixed(2)}</td>
                   </tr>
                   <tr>
-                    <td colSpan="4" className="text-center">
+                    <td colSpan="5" className="text-center">
                       {splitsPreview.is_balanced ? (
                         <span className="text-success">✓ Balanced</span>
                       ) : (

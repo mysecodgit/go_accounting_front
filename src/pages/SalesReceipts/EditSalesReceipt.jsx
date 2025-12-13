@@ -309,6 +309,7 @@ const EditSalesReceipt = () => {
   const calculateSplits = (itemsList, accountIdOverride = null, peopleIdOverride = null) => {
     const accountId = accountIdOverride || validation.values.account_id;
     const peopleId = peopleIdOverride || validation.values.people_id;
+    const unitId = validation.values.unit_id ? parseInt(validation.values.unit_id) : null;
     
     if (itemsList.length === 0 || accounts.length === 0 || !accountId) {
       setSplitsPreview({ splits: [], total_debit: 0, total_credit: 0, is_balanced: true });
@@ -381,6 +382,7 @@ const EditSalesReceipt = () => {
         account_name: assetAccount.account_name,
         people_id: selectedPeopleId,
         people_name: peopleName,
+        unit_id: unitId, // Include unit_id from form
         debit: assetAmount,
         credit: null,
         status: "active",
@@ -391,6 +393,7 @@ const EditSalesReceipt = () => {
         account_name: assetAccount.account_name,
         people_id: selectedPeopleId,
         people_name: peopleName,
+        unit_id: unitId, // Include unit_id from form
         debit: null,
         credit: Math.abs(assetAmount),
         status: "active",
@@ -403,6 +406,7 @@ const EditSalesReceipt = () => {
         account_name: discountIncomeAccount.account_name || "Discount Income",
         people_id: selectedPeopleId,
         people_name: peopleName,
+        unit_id: unitId, // Include unit_id from form
         debit: discountTotal,
         credit: null,
         status: "active",
@@ -415,6 +419,7 @@ const EditSalesReceipt = () => {
         account_name: paymentAssetAccount.account_name || "Payment Asset",
         people_id: selectedPeopleId,
         people_name: peopleName,
+        unit_id: unitId, // Include unit_id from form
         debit: paymentTotal,
         credit: null,
         status: "active",
@@ -429,6 +434,7 @@ const EditSalesReceipt = () => {
           account_name: account.account_name,
           people_id: selectedPeopleId,
           people_name: peopleName,
+          unit_id: unitId, // Include unit_id from form
           debit: null,
           credit: serviceIncomeByAccount[accountId],
           status: "active",
@@ -444,6 +450,7 @@ const EditSalesReceipt = () => {
           account_name: account.account_name,
           people_id: selectedPeopleId,
           people_name: peopleName,
+          unit_id: unitId, // Include unit_id from form
           debit: serviceDebitByAccount[accountId],
           credit: null,
           status: "active",
@@ -827,23 +834,28 @@ const EditSalesReceipt = () => {
                       <tr>
                         <th>Account</th>
                         <th>People</th>
+                        <th>Unit</th>
                         <th>Debit</th>
                         <th>Credit</th>
                         <th>Status</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {splitsPreview.splits.map((split, index) => (
-                        <tr key={index}>
-                          <td>{split.account_name}</td>
-                          <td>{split.people_name || "N/A"}</td>
-                          <td>{split.debit ? split.debit.toFixed(2) : "-"}</td>
-                          <td>{split.credit ? split.credit.toFixed(2) : "-"}</td>
-                          <td>{split.status}</td>
-                        </tr>
-                      ))}
+                      {splitsPreview.splits.map((split, index) => {
+                        const unit = split.unit_id ? units.find((u) => u.id === split.unit_id) : null;
+                        return (
+                          <tr key={index}>
+                            <td>{split.account_name}</td>
+                            <td>{split.people_name || "N/A"}</td>
+                            <td>{unit ? unit.name : split.unit_id ? `ID: ${split.unit_id}` : "N/A"}</td>
+                            <td>{split.debit ? split.debit.toFixed(2) : "-"}</td>
+                            <td>{split.credit ? split.credit.toFixed(2) : "-"}</td>
+                            <td>{split.status}</td>
+                          </tr>
+                        );
+                      })}
                       <tr style={{ fontWeight: "bold", backgroundColor: "#f8f9fa" }}>
-                        <td colSpan="2">Total</td>
+                        <td colSpan="3">Total</td>
                         <td>{splitsPreview.total_debit?.toFixed(2) || "0.00"}</td>
                         <td>{splitsPreview.total_credit?.toFixed(2) || "0.00"}</td>
                         <td>

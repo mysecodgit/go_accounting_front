@@ -139,7 +139,8 @@ const CreditMemos = () => {
         enableColumnFilter: false,
         enableSorting: true,
         cell: (cell) => {
-          return <>{cell.row.original.date ? moment(cell.row.original.date).format("YYYY-MM-DD") : "N/A"}</>;
+          const creditMemo = cell.row.original.credit_memo || cell.row.original;
+          return <>{creditMemo.date ? moment(creditMemo.date).format("YYYY-MM-DD") : "N/A"}</>;
         },
       },
       {
@@ -148,7 +149,8 @@ const CreditMemos = () => {
         enableColumnFilter: false,
         enableSorting: true,
         cell: (cell) => {
-          return <>{getPeopleName(cell.row.original.people_id)}</>;
+          const creditMemo = cell.row.original.credit_memo || cell.row.original;
+          return <>{getPeopleName(creditMemo.people_id)}</>;
         },
       },
       {
@@ -157,7 +159,8 @@ const CreditMemos = () => {
         enableColumnFilter: false,
         enableSorting: true,
         cell: (cell) => {
-          return <>{getUnitName(cell.row.original.unit_id)}</>;
+          const creditMemo = cell.row.original.credit_memo || cell.row.original;
+          return <>{getUnitName(creditMemo.unit_id)}</>;
         },
       },
       {
@@ -166,7 +169,26 @@ const CreditMemos = () => {
         enableColumnFilter: false,
         enableSorting: true,
         cell: (cell) => {
-          return <>{parseFloat(cell.row.original.amount || 0).toFixed(2)}</>;
+          const creditMemo = cell.row.original.credit_memo || cell.row.original;
+          return <>{parseFloat(creditMemo.amount || 0).toFixed(2)}</>;
+        },
+      },
+      {
+        header: "Used Credits",
+        accessorKey: "used_credits",
+        enableColumnFilter: false,
+        enableSorting: true,
+        cell: (cell) => {
+          return <>{parseFloat(cell.row.original.used_credits || 0).toFixed(2)}</>;
+        },
+      },
+      {
+        header: "Balance",
+        accessorKey: "balance",
+        enableColumnFilter: false,
+        enableSorting: true,
+        cell: (cell) => {
+          return <>{parseFloat(cell.row.original.balance || 0).toFixed(2)}</>;
         },
       },
       {
@@ -175,7 +197,8 @@ const CreditMemos = () => {
         enableColumnFilter: false,
         enableSorting: true,
         cell: (cell) => {
-          return <>{getAccountName(cell.row.original.deposit_to)}</>;
+          const creditMemo = cell.row.original.credit_memo || cell.row.original;
+          return <>{getAccountName(creditMemo.deposit_to)}</>;
         },
       },
       {
@@ -184,7 +207,8 @@ const CreditMemos = () => {
         enableColumnFilter: false,
         enableSorting: true,
         cell: (cell) => {
-          return <>{getAccountName(cell.row.original.liability_account)}</>;
+          const creditMemo = cell.row.original.credit_memo || cell.row.original;
+          return <>{getAccountName(creditMemo.liability_account)}</>;
         },
       },
       {
@@ -192,6 +216,10 @@ const CreditMemos = () => {
         accessorKey: "description",
         enableColumnFilter: false,
         enableSorting: true,
+        cell: (cell) => {
+          const creditMemo = cell.row.original.credit_memo || cell.row.original;
+          return <>{creditMemo.description || "N/A"}</>;
+        },
       },
       {
         header: "Actions",
@@ -205,14 +233,20 @@ const CreditMemos = () => {
                 color="info"
                 size="sm"
                 className="me-2"
-                onClick={() => fetchCreditMemoDetails(cell.row.original.id)}
+                onClick={() => {
+                  const creditMemo = cell.row.original.credit_memo || cell.row.original;
+                  fetchCreditMemoDetails(creditMemo.id);
+                }}
               >
                 View
               </Button>
               <Button
                 color="primary"
                 size="sm"
-                onClick={() => navigate(`/building/${buildingId}/credit-memos/${cell.row.original.id}/edit`)}
+                onClick={() => {
+                  const creditMemo = cell.row.original.credit_memo || cell.row.original;
+                  navigate(`/building/${buildingId}/credit-memos/${creditMemo.id}/edit`);
+                }}
               >
                 Edit
               </Button>
@@ -316,6 +350,7 @@ const CreditMemos = () => {
                     <tr>
                       <th>Account</th>
                       <th>People</th>
+                      <th>Unit</th>
                       <th className="text-end">Debit</th>
                       <th className="text-end">Credit</th>
                       <th>Status</th>
@@ -324,22 +359,26 @@ const CreditMemos = () => {
                   <tbody>
                     {viewingCreditMemo.splits
                       .filter((split) => split.status === "1")
-                      .map((split, index) => (
-                        <tr key={index}>
-                          <td>{getAccountName(split.account_id)}</td>
-                          <td>{split.people_id ? getPeopleName(split.people_id) : "N/A"}</td>
-                          <td className="text-end">
-                            {split.debit ? parseFloat(split.debit).toFixed(2) : "-"}
-                          </td>
-                          <td className="text-end">
-                            {split.credit ? parseFloat(split.credit).toFixed(2) : "-"}
-                          </td>
-                          <td>Active</td>
-                        </tr>
-                      ))}
+                      .map((split, index) => {
+                        const unit = split.unit_id ? units.find((u) => u.id === split.unit_id) : null;
+                        return (
+                          <tr key={index}>
+                            <td>{getAccountName(split.account_id)}</td>
+                            <td>{split.people_id ? getPeopleName(split.people_id) : "N/A"}</td>
+                            <td>{unit ? unit.name : split.unit_id ? `ID: ${split.unit_id}` : "N/A"}</td>
+                            <td className="text-end">
+                              {split.debit ? parseFloat(split.debit).toFixed(2) : "-"}
+                            </td>
+                            <td className="text-end">
+                              {split.credit ? parseFloat(split.credit).toFixed(2) : "-"}
+                            </td>
+                            <td>Active</td>
+                          </tr>
+                        );
+                      })}
                     {/* Total Row for Active Splits */}
                     <tr style={{ backgroundColor: "#f8f9fa", fontWeight: "bold" }}>
-                      <td colSpan="2" className="text-end">TOTAL</td>
+                      <td colSpan="3" className="text-end">TOTAL</td>
                       <td className="text-end">
                         {viewingCreditMemo.splits
                           .filter((split) => split.status === "1")
@@ -368,6 +407,7 @@ const CreditMemos = () => {
                         <tr>
                           <th>Account</th>
                           <th>People</th>
+                          <th>Unit</th>
                           <th className="text-end">Debit</th>
                           <th className="text-end">Credit</th>
                           <th>Status</th>
@@ -376,19 +416,23 @@ const CreditMemos = () => {
                       <tbody>
                         {viewingCreditMemo.splits
                           .filter((split) => split.status === "0" || split.status === 0)
-                          .map((split, index) => (
-                            <tr key={index} style={{ opacity: 0.6 }}>
-                              <td>{getAccountName(split.account_id)}</td>
-                              <td>{split.people_id ? getPeopleName(split.people_id) : "N/A"}</td>
-                              <td className="text-end">
-                                {split.debit ? parseFloat(split.debit).toFixed(2) : "-"}
-                              </td>
-                              <td className="text-end">
-                                {split.credit ? parseFloat(split.credit).toFixed(2) : "-"}
-                              </td>
-                              <td>Inactive</td>
-                            </tr>
-                          ))}
+                          .map((split, index) => {
+                            const unit = split.unit_id ? units.find((u) => u.id === split.unit_id) : null;
+                            return (
+                              <tr key={index} style={{ opacity: 0.6 }}>
+                                <td>{getAccountName(split.account_id)}</td>
+                                <td>{split.people_id ? getPeopleName(split.people_id) : "N/A"}</td>
+                                <td>{unit ? unit.name : split.unit_id ? `ID: ${split.unit_id}` : "N/A"}</td>
+                                <td className="text-end">
+                                  {split.debit ? parseFloat(split.debit).toFixed(2) : "-"}
+                                </td>
+                                <td className="text-end">
+                                  {split.credit ? parseFloat(split.credit).toFixed(2) : "-"}
+                                </td>
+                                <td>Inactive</td>
+                              </tr>
+                            );
+                          })}
                       </tbody>
                     </Table>
                   </div>

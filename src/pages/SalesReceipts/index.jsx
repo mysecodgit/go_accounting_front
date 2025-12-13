@@ -418,6 +418,7 @@ const SalesReceipts = () => {
                           <tr>
                             <th>Account</th>
                             <th>Customer/Vendor</th>
+                            <th>Unit</th>
                             <th>Debit</th>
                             <th>Credit</th>
                             <th>Status</th>
@@ -427,10 +428,12 @@ const SalesReceipts = () => {
                           {(viewingReceipt.splits || []).map((split, index) => {
                             const account = accounts.find((a) => a.id === split.account_id);
                             const person = split.people_id ? people.find((p) => p.id === split.people_id) : null;
+                            const unit = split.unit_id ? units.find((u) => u.id === split.unit_id) : null;
                             return (
                               <tr key={index} style={{ backgroundColor: split.status === "1" ? "transparent" : "#f8f9fa" }}>
                                 <td>{account ? `${account.account_name} (${account.account_number})` : `ID: ${split.account_id}`}</td>
                                 <td>{person ? person.name : split.people_id ? `ID: ${split.people_id}` : "N/A"}</td>
+                                <td>{unit ? unit.name : split.unit_id ? `ID: ${split.unit_id}` : "N/A"}</td>
                                 <td>{split.debit ? parseFloat(split.debit).toFixed(2) : "-"}</td>
                                 <td>{split.credit ? parseFloat(split.credit).toFixed(2) : "-"}</td>
                                 <td>
@@ -444,7 +447,7 @@ const SalesReceipts = () => {
                         </tbody>
                         <tfoot>
                           <tr style={{ fontWeight: "bold", backgroundColor: "#f8f9fa" }}>
-                            <td colSpan="2">Total (Active Only)</td>
+                            <td colSpan="3">Total (Active Only)</td>
                             <td>
                               {(viewingReceipt.splits || []).filter(split => split.status === "1").reduce((sum, split) => sum + (parseFloat(split.debit) || 0), 0).toFixed(2)}
                             </td>

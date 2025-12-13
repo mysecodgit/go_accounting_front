@@ -104,14 +104,14 @@ const CustomerBalanceSummary = () => {
               <Col xs={12}>
                 <Card>
                   <CardBody>
-                    <div className="mb-3">
+                    <div className="mb-3 text-center">
                       <h5>Customer Balance Summary</h5>
                       <p className="text-muted">
                         As of: {moment(report.as_of_date).format("YYYY-MM-DD")}
                       </p>
                     </div>
-                    <div className="table-responsive">
-                      <Table bordered striped>
+                    <div className="table-responsive d-flex justify-content-center">
+                      <Table bordered striped style={{ width: "60%" }}>
                         <thead className="table-light">
                           <tr>
                             <th>Customer Name</th>
@@ -124,12 +124,12 @@ const CustomerBalanceSummary = () => {
                               <td>{customer.people_name}</td>
                               <td className="text-end">
                                 {customer.balance >= 0 ? (
-                                  <span className="text-danger">
+                                  <span style={{ color: "black" }}>
                                     {parseFloat(customer.balance).toFixed(2)}
                                   </span>
                                 ) : (
-                                  <span className="text-success">
-                                    ({Math.abs(parseFloat(customer.balance)).toFixed(2)})
+                                  <span style={{ color: "black" }}>
+                                    {parseFloat(customer.balance).toFixed(2)}
                                   </span>
                                 )}
                               </td>
@@ -140,15 +140,9 @@ const CustomerBalanceSummary = () => {
                           <tr style={{ backgroundColor: "#f8f9fa", fontWeight: "bold" }}>
                             <td className="text-end">Total Balance</td>
                             <td className="text-end">
-                              {report.total_balance >= 0 ? (
-                                <span className="text-danger">
-                                  {parseFloat(report.total_balance).toFixed(2)}
-                                </span>
-                              ) : (
-                                <span className="text-success">
-                                  ({Math.abs(parseFloat(report.total_balance)).toFixed(2)})
-                                </span>
-                              )}
+                              <span style={{ color: "black" }}>
+                                {parseFloat(report.total_balance).toFixed(2)}
+                              </span>
                             </td>
                           </tr>
                         </tfoot>

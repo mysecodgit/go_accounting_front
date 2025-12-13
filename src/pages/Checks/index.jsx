@@ -28,6 +28,8 @@ const Checks = () => {
   const [isLoading, setLoading] = useState(false);
   const [checks, setChecks] = useState([]);
   const [accounts, setAccounts] = useState([]);
+  const [units, setUnits] = useState([]);
+  const [people, setPeople] = useState([]);
   const [viewingCheck, setViewingCheck] = useState(null);
   const [showCheckDetailsModal, setShowCheckDetailsModal] = useState(false);
 
@@ -41,6 +43,32 @@ const Checks = () => {
       setAccounts(data || []);
     } catch (error) {
       console.log("Error fetching accounts", error);
+    }
+  };
+
+  const fetchUnits = async () => {
+    try {
+      let url = "units";
+      if (buildingId) {
+        url = `buildings/${buildingId}/units`;
+      }
+      const { data } = await axiosInstance.get(url);
+      setUnits(data || []);
+    } catch (error) {
+      console.log("Error fetching units", error);
+    }
+  };
+
+  const fetchPeople = async () => {
+    try {
+      let url = "people";
+      if (buildingId) {
+        url = `buildings/${buildingId}/people`;
+      }
+      const { data } = await axiosInstance.get(url);
+      setPeople(data || []);
+    } catch (error) {
+      console.log("Error fetching people", error);
     }
   };
 
@@ -83,6 +111,8 @@ const Checks = () => {
 
   useEffect(() => {
     fetchAccounts();
+    fetchUnits();
+    fetchPeople();
     fetchChecks();
   }, [buildingId]);
 
@@ -256,11 +286,13 @@ const Checks = () => {
                         <tbody>
                           {(viewingCheck.expense_lines || []).map((line, index) => {
                             const account = accounts.find((a) => a.id === line.account_id);
+                            const unit = line.unit_id ? units.find((u) => u.id === line.unit_id) : null;
+                            const person = line.people_id ? people.find((p) => p.id === line.people_id) : null;
                             return (
                               <tr key={index}>
                                 <td>{account ? `${account.account_name} (${account.account_number})` : `ID: ${line.account_id}`}</td>
-                                <td>{line.unit_id || "N/A"}</td>
-                                <td>{line.people_id || "N/A"}</td>
+                                <td>{unit ? unit.name : line.unit_id ? `ID: ${line.unit_id}` : "N/A"}</td>
+                                <td>{person ? person.name : line.people_id ? `ID: ${line.people_id}` : "N/A"}</td>
                                 <td>{line.description || "N/A"}</td>
                                 <td>{parseFloat(line.amount || 0).toFixed(2)}</td>
                               </tr>
@@ -280,6 +312,7 @@ const Checks = () => {
                           <tr>
                             <th>Account</th>
                             <th>People</th>
+                            <th>Unit</th>
                             <th>Debit</th>
                             <th>Credit</th>
                             <th>Status</th>
@@ -288,10 +321,13 @@ const Checks = () => {
                         <tbody>
                           {(viewingCheck.splits || []).map((split, index) => {
                             const account = accounts.find((a) => a.id === split.account_id);
+                            const unit = split.unit_id ? units.find((u) => u.id === split.unit_id) : null;
+                            const person = split.people_id ? people.find((p) => p.id === split.people_id) : null;
                             return (
                               <tr key={index} style={{ backgroundColor: split.status === "1" ? "transparent" : "#f8f9fa" }}>
                                 <td>{account ? `${account.account_name} (${account.account_number})` : `ID: ${split.account_id}`}</td>
-                                <td>{split.people_id || "N/A"}</td>
+                                <td>{person ? person.name : split.people_id ? `ID: ${split.people_id}` : "N/A"}</td>
+                                <td>{unit ? unit.name : split.unit_id ? `ID: ${split.unit_id}` : "N/A"}</td>
                                 <td>{split.debit ? parseFloat(split.debit).toFixed(2) : "-"}</td>
                                 <td>{split.credit ? parseFloat(split.credit).toFixed(2) : "-"}</td>
                                 <td>
@@ -305,7 +341,7 @@ const Checks = () => {
                         </tbody>
                         <tfoot>
                           <tr style={{ fontWeight: "bold", backgroundColor: "#f8f9fa" }}>
-                            <td colSpan="2">Total (Active Only)</td>
+                            <td colSpan="3">Total (Active Only)</td>
                             <td>
                               {(viewingCheck.splits || []).filter(split => split.status === "1").reduce((sum, split) => sum + (parseFloat(split.debit) || 0), 0).toFixed(2)}
                             </td>
