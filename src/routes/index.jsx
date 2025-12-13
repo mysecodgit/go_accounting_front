@@ -27,6 +27,8 @@ import Accounts from "../pages/Accounts";
 import Items from "../pages/Items";
 import Invoices from "../pages/Invoices";
 import InvoicePayments from "../pages/InvoicePayments";
+import CreateInvoicePayment from "../pages/InvoicePayments/CreateInvoicePayment";
+import EditInvoicePayment from "../pages/InvoicePayments/EditInvoicePayment";
 import SalesReceipts from "../pages/SalesReceipts";
 import Users from "../pages/Users";
 import BalanceSheet from "../pages/Reports/BalanceSheet";
@@ -40,6 +42,8 @@ import CreateSalesReceipt from "../pages/SalesReceipts/CreateSalesReceipt";
 import EditSalesReceipt from "../pages/SalesReceipts/EditSalesReceipt";
 import Checks from "../pages/Checks";
 import CreateCheck from "../pages/Checks/CreateCheck";
+import CreditMemos from "../pages/CreditMemos";
+import CreateCreditMemo from "../pages/CreditMemos/CreateCreditMemo";
 import Journals from "../pages/Journals";
 import CreateJournal from "../pages/Journals/CreateJournal";
 
@@ -60,12 +64,17 @@ const authProtectedRoutes = [
   { path: "/building/:id/invoices/create", component: <CreateInvoice /> },
   { path: "/building/:id/invoices/:invoiceId/edit", component: <EditInvoice /> },
   { path: "/building/:id/invoice-payments", component: <InvoicePayments /> },
+  { path: "/building/:id/invoice-payments/create", component: <CreateInvoicePayment /> },
+  { path: "/building/:id/invoice-payments/:paymentId/edit", component: <EditInvoicePayment /> },
   { path: "/building/:id/sales-receipts", component: <SalesReceipts /> },
   { path: "/building/:id/sales-receipts/create", component: <CreateSalesReceipt /> },
   { path: "/building/:id/sales-receipts/:receiptId/edit", component: <EditSalesReceipt /> },
-  { path: "/building/:id/checks", component: <Checks /> },
-  { path: "/building/:id/checks/create", component: <CreateCheck /> },
-  { path: "/building/:id/checks/:checkId/edit", component: <CreateCheck /> },
+    { path: "/building/:id/checks", component: <Checks /> },
+    { path: "/building/:id/checks/create", component: <CreateCheck /> },
+    { path: "/building/:id/checks/:checkId/edit", component: <CreateCheck /> },
+    { path: "/building/:id/credit-memos", component: <CreditMemos /> },
+    { path: "/building/:id/credit-memos/create", component: <CreateCreditMemo /> },
+    { path: "/building/:id/credit-memos/:creditMemoId/edit", component: <CreateCreditMemo /> },
   { path: "/building/:id/journals", component: <Journals /> },
   { path: "/building/:id/journals/create", component: <CreateJournal /> },
   { path: "/building/:id/journals/:journalId/edit", component: <CreateJournal /> },

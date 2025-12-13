@@ -274,6 +274,12 @@ const SidebarContent = (props) => {
                         <span>{props.t("Journals")}</span>
                       </Link>
                     </li>
+                    <li>
+                      <Link to={buildRoute("/credit-memos")}>
+                        <i className="bx bx-receipt"></i>
+                        <span>{props.t("Credit Memos")}</span>
+                      </Link>
+                    </li>
                   </ul>
                 </li>
 

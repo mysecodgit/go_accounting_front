@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import Spinners from "../../components/Common/Spinner";
 import TableContainer from "../../components/Common/TableContainer";
@@ -13,6 +13,8 @@ import {
   ModalBody,
   Button,
   Table,
+  Label,
+  Input,
 } from "reactstrap";
 import Breadcrumbs from "/src/components/Common/Breadcrumb";
 import { ToastContainer, toast } from "react-toastify";
@@ -32,6 +34,25 @@ const Invoices = () => {
   const [accounts, setAccounts] = useState([]);
   const [viewingInvoice, setViewingInvoice] = useState(null);
   const [showInvoiceDetailsModal, setShowInvoiceDetailsModal] = useState(false);
+  const [availableCredits, setAvailableCredits] = useState([]);
+  const [appliedCredits, setAppliedCredits] = useState([]);
+  const [showApplyCreditModal, setShowApplyCreditModal] = useState(false);
+  const [selectedInvoiceId, setSelectedInvoiceId] = useState(null);
+  const [selectedCreditMemo, setSelectedCreditMemo] = useState(null);
+  const [applyAmount, setApplyAmount] = useState(0);
+  const [applyDescription, setApplyDescription] = useState("");
+  const [applyDate, setApplyDate] = useState(moment().format("YYYY-MM-DD"));
+  const [splitsPreview, setSplitsPreview] = useState(null);
+  const [showSplitsPreviewModal, setShowSplitsPreviewModal] = useState(false);
+  const [userId] = useState(1); // TODO: Get from auth context
+  const [showPayModal, setShowPayModal] = useState(false);
+  const [selectedInvoiceForPayment, setSelectedInvoiceForPayment] = useState(null);
+  const [previousPayments, setPreviousPayments] = useState([]);
+  const [paymentDate, setPaymentDate] = useState(moment().format("YYYY-MM-DD"));
+  const [paymentAccountId, setPaymentAccountId] = useState("");
+  const [paymentAmount, setPaymentAmount] = useState(0);
+  const [paymentSplitsPreview, setPaymentSplitsPreview] = useState(null);
+  const [showPaymentSplitsModal, setShowPaymentSplitsModal] = useState(false);
 
   const fetchUnits = async () => {
     try {
@@ -91,19 +112,147 @@ const Invoices = () => {
     }
   };
 
-  const fetchInvoiceDetails = async (invoiceId) => {
+  const fetchInvoiceDetails = useCallback(async (invoiceId) => {
     try {
+      console.log("fetchInvoiceDetails called with invoiceId:", invoiceId);
       setLoading(true);
       let url = `invoices/${invoiceId}`;
       if (buildingId) {
         url = `buildings/${buildingId}/invoices/${invoiceId}`;
       }
+      console.log("Fetching invoice from URL:", url);
       const { data: invoiceResponse } = await axiosInstance.get(url);
+      console.log("Invoice response received:", invoiceResponse);
       setViewingInvoice(invoiceResponse);
+      console.log("Setting viewingInvoice state");
       setShowInvoiceDetailsModal(true);
+      console.log("Setting showInvoiceDetailsModal to true");
     } catch (error) {
-      console.log("Error fetching invoice details", error);
+      console.error("Error fetching invoice details", error);
       toast.error("Failed to fetch invoice details");
+    } finally {
+      setLoading(false);
+    }
+  }, [buildingId]);
+
+  const fetchAvailableCreditsForApply = useCallback(async (invoiceId) => {
+    try {
+      console.log("fetchAvailableCreditsForApply called with invoiceId:", invoiceId);
+      let url = `invoices/${invoiceId}/available-credits`;
+      if (buildingId) {
+        url = `buildings/${buildingId}/invoices/${invoiceId}/available-credits`;
+      }
+      console.log("Fetching available credits from URL:", url);
+      const { data } = await axiosInstance.get(url);
+      console.log("Available credits response:", data);
+      const credits = data?.credits || [];
+      // Round available amounts to 2 decimal places to fix floating-point precision issues
+      const roundedCredits = credits.map(credit => ({
+        ...credit,
+        available_amount: Math.round(credit.available_amount * 100) / 100,
+        applied_amount: Math.round(credit.applied_amount * 100) / 100,
+        amount: Math.round(credit.amount * 100) / 100,
+      }));
+      setAvailableCredits(roundedCredits);
+      if (roundedCredits.length > 0) {
+        setSelectedCreditMemo(roundedCredits[0]);
+        const roundedAmount = Math.round(roundedCredits[0].available_amount * 100) / 100;
+        setApplyAmount(roundedAmount);
+        console.log("Selected credit memo:", roundedCredits[0]);
+      } else {
+        setSelectedCreditMemo(null);
+        setApplyAmount(0);
+        toast.info("No available credits for this invoice");
+      }
+    } catch (error) {
+      console.error("Error fetching available credits", error);
+      toast.error("Failed to fetch available credits");
+      setAvailableCredits([]);
+      setSelectedCreditMemo(null);
+    }
+  }, [buildingId]);
+
+  const previewSplits = async () => {
+    if (!selectedCreditMemo || !selectedInvoiceId || applyAmount <= 0 || !applyDescription) {
+      toast.error("Please fill all required fields");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      let url = `invoices/${selectedInvoiceId}/preview-apply-credit`;
+      if (buildingId) {
+        url = `buildings/${buildingId}/invoices/${selectedInvoiceId}/preview-apply-credit`;
+      }
+
+      const payload = {
+        credit_memo_id: selectedCreditMemo.id,
+        amount: parseFloat(applyAmount),
+        description: applyDescription,
+        date: applyDate,
+      };
+
+      const { data } = await axiosInstance.post(url, payload);
+      setSplitsPreview(data);
+      setShowSplitsPreviewModal(true);
+    } catch (error) {
+      const errorMsg = error.response?.data?.error || "Failed to preview splits";
+      toast.error(errorMsg);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleApplyCredit = async () => {
+    if (!selectedCreditMemo || !selectedInvoiceId || applyAmount <= 0 || !applyDescription) {
+      toast.error("Please fill all required fields");
+      return;
+    }
+
+    if (applyAmount > selectedCreditMemo.available_amount) {
+      toast.error(`Amount cannot exceed available credit of ${Math.round(selectedCreditMemo.available_amount * 100) / 100}`);
+      return;
+    }
+
+    try {
+      setLoading(true);
+      let url = `invoices/${selectedInvoiceId}/apply-credit`;
+      if (buildingId) {
+        url = `buildings/${buildingId}/invoices/${selectedInvoiceId}/apply-credit`;
+      }
+
+      const payload = {
+        credit_memo_id: selectedCreditMemo.id,
+        amount: parseFloat(applyAmount),
+        description: applyDescription,
+        date: applyDate,
+      };
+
+      const config = {
+        headers: {
+          "User-ID": userId.toString(),
+        },
+      };
+
+      await axiosInstance.post(url, payload, config);
+      toast.success("Credit applied successfully");
+      
+      // Refresh applied credits and available credits
+      if (selectedInvoiceId) {
+        await fetchAppliedCreditsForModal(selectedInvoiceId);
+        await fetchAvailableCreditsForApply(selectedInvoiceId);
+      }
+      
+      // Reset form
+      setApplyAmount(0);
+      setApplyDescription("");
+      setApplyDate(moment().format("YYYY-MM-DD"));
+      
+      // Refresh invoices list
+      await fetchInvoices();
+    } catch (error) {
+      const errorMsg = error.response?.data?.error || "Failed to apply credit";
+      toast.error(errorMsg);
     } finally {
       setLoading(false);
     }
@@ -115,6 +264,196 @@ const Invoices = () => {
     fetchAccounts();
     fetchInvoices();
   }, [buildingId]);
+
+  // Handler functions
+  const handleViewClick = useCallback((invoiceId) => {
+    console.log("handleViewClick called with:", invoiceId);
+    fetchInvoiceDetails(invoiceId);
+  }, [fetchInvoiceDetails]);
+
+  const fetchAppliedCreditsForModal = useCallback(async (invoiceId) => {
+    try {
+      let url = `invoices/${invoiceId}/applied-credits`;
+      if (buildingId) {
+        url = `buildings/${buildingId}/invoices/${invoiceId}/applied-credits`;
+      }
+      const { data } = await axiosInstance.get(url);
+      setAppliedCredits(data || []);
+    } catch (error) {
+      console.error("Error fetching applied credits", error);
+      setAppliedCredits([]);
+    }
+  }, [buildingId]);
+
+  const handleDeleteAppliedCredit = async (appliedCreditId) => {
+    if (!window.confirm("Are you sure you want to delete this applied credit? This will also soft delete the related transaction and splits.")) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      let url = `invoice-applied-credits/${appliedCreditId}`;
+      if (buildingId) {
+        url = `buildings/${buildingId}/invoice-applied-credits/${appliedCreditId}`;
+      }
+      await axiosInstance.delete(url);
+      toast.success("Applied credit deleted successfully");
+      
+      // Refresh applied credits and available credits
+      if (selectedInvoiceId) {
+        await fetchAppliedCreditsForModal(selectedInvoiceId);
+        await fetchAvailableCreditsForApply(selectedInvoiceId);
+      }
+    } catch (error) {
+      const errorMsg = error.response?.data?.error || "Failed to delete applied credit";
+      toast.error(errorMsg);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleApplyCreditClick = useCallback(async (invoiceId) => {
+    console.log("handleApplyCreditClick called with:", invoiceId);
+    setSelectedInvoiceId(invoiceId);
+    try {
+      await fetchAvailableCreditsForApply(invoiceId);
+      await fetchAppliedCreditsForModal(invoiceId);
+      setShowApplyCreditModal(true);
+      console.log("Modal state set to true, showApplyCreditModal:", true);
+    } catch (error) {
+      console.error("Error in Apply Credit:", error);
+    }
+  }, [fetchAvailableCreditsForApply, fetchAppliedCreditsForModal]);
+
+  const handleEditClick = useCallback((invoiceId) => {
+    console.log("handleEditClick called with:", invoiceId);
+    const editUrl = `/building/${buildingId}/invoices/${invoiceId}/edit`;
+    console.log("Navigating to:", editUrl);
+    navigate(editUrl);
+  }, [buildingId, navigate]);
+
+  const handlePayClick = useCallback(async (invoice) => {
+    setSelectedInvoiceForPayment(invoice);
+    setPaymentDate(moment().format("YYYY-MM-DD"));
+    setPaymentAccountId("");
+    
+    // Calculate balance to prefill payment amount
+    const amount = parseFloat(invoice.amount || 0);
+    const paidAmount = parseFloat(invoice.paid_amount || 0);
+    const appliedCredits = parseFloat(invoice.applied_credits_total || 0);
+    const balance = Math.round((amount - paidAmount - appliedCredits) * 100) / 100;
+    setPaymentAmount(balance > 0 ? balance : 0);
+    
+    // Fetch previous payments for this invoice
+    try {
+      let url = `invoices/${invoice.id}/payments`;
+      if (buildingId) {
+        url = `buildings/${buildingId}/invoices/${invoice.id}/payments`;
+      }
+      const { data } = await axiosInstance.get(url);
+      setPreviousPayments(data || []);
+    } catch (error) {
+      console.error("Error fetching previous payments", error);
+      setPreviousPayments([]);
+    }
+    
+    setShowPayModal(true);
+  }, [buildingId]);
+
+  const fetchPreviousPayments = useCallback(async (invoiceId) => {
+    try {
+      let url = `invoices/${invoiceId}/payments`;
+      if (buildingId) {
+        url = `buildings/${buildingId}/invoices/${invoiceId}/payments`;
+      }
+      const { data } = await axiosInstance.get(url);
+      setPreviousPayments(data || []);
+    } catch (error) {
+      console.error("Error fetching previous payments", error);
+      setPreviousPayments([]);
+    }
+  }, [buildingId]);
+
+  const previewPaymentSplits = async () => {
+    if (!selectedInvoiceForPayment || !paymentAccountId || paymentAmount <= 0) {
+      toast.error("Please fill all required fields");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      let url = `invoice-payments/preview`;
+      if (buildingId) {
+        url = `buildings/${buildingId}/invoice-payments/preview`;
+      }
+
+      const payload = {
+        invoice_id: selectedInvoiceForPayment.id,
+        account_id: parseInt(paymentAccountId),
+        amount: parseFloat(paymentAmount),
+        date: paymentDate,
+        building_id: parseInt(buildingId),
+      };
+
+      const { data } = await axiosInstance.post(url, payload);
+      setPaymentSplitsPreview(data);
+      setShowPaymentSplitsModal(true);
+    } catch (error) {
+      const errorMsg = error.response?.data?.error || "Failed to preview splits";
+      toast.error(errorMsg);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCreatePayment = async () => {
+    if (!selectedInvoiceForPayment || !paymentAccountId || paymentAmount <= 0) {
+      toast.error("Please fill all required fields");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      let url = `invoice-payments`;
+      if (buildingId) {
+        url = `buildings/${buildingId}/invoice-payments`;
+      }
+
+      const payload = {
+        invoice_id: selectedInvoiceForPayment.id,
+        account_id: parseInt(paymentAccountId),
+        amount: parseFloat(paymentAmount),
+        date: paymentDate,
+        status: 1,
+        building_id: parseInt(buildingId),
+      };
+
+      const config = {
+        headers: {
+          "User-ID": userId.toString(),
+        },
+      };
+
+      await axiosInstance.post(url, payload, config);
+      toast.success("Payment recorded successfully");
+      
+      // Refresh previous payments
+      await fetchPreviousPayments(selectedInvoiceForPayment.id);
+      
+      // Reset form
+      setPaymentAmount(0);
+      setPaymentAccountId("");
+      setPaymentDate(moment().format("YYYY-MM-DD"));
+      
+      // Refresh invoices list
+      await fetchInvoices();
+    } catch (error) {
+      const errorMsg = error.response?.data?.error || "Failed to create payment";
+      toast.error(errorMsg);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Table columns definition
   const columns = useMemo(
@@ -173,6 +512,66 @@ const Invoices = () => {
         },
       },
       {
+        header: "Paid Amount",
+        accessorKey: "paid_amount",
+        enableColumnFilter: false,
+        enableSorting: true,
+        cell: (cell) => {
+          return <>{parseFloat(cell.row.original.paid_amount || 0).toFixed(2)}</>;
+        },
+      },
+      {
+        header: "Applied Credits",
+        accessorKey: "applied_credits_total",
+        enableColumnFilter: false,
+        enableSorting: true,
+        cell: (cell) => {
+          return <>{parseFloat(cell.row.original.applied_credits_total || 0).toFixed(2)}</>;
+        },
+      },
+      {
+        header: "Balance",
+        accessorKey: "balance",
+        enableColumnFilter: false,
+        enableSorting: true,
+        cell: (cell) => {
+          const amount = parseFloat(cell.row.original.amount || 0);
+          const paidAmount = parseFloat(cell.row.original.paid_amount || 0);
+          const appliedCredits = parseFloat(cell.row.original.applied_credits_total || 0);
+          const balance = Math.round((amount - paidAmount - appliedCredits) * 100) / 100;
+          return <>{balance.toFixed(2)}</>;
+        },
+      },
+      {
+        header: "Payment Status",
+        accessorKey: "payment_status",
+        enableColumnFilter: false,
+        enableSorting: true,
+        cell: (cell) => {
+          const amount = parseFloat(cell.row.original.amount || 0);
+          const paidAmount = parseFloat(cell.row.original.paid_amount || 0);
+          const appliedCredits = parseFloat(cell.row.original.applied_credits_total || 0);
+          const balance = Math.round((amount - paidAmount - appliedCredits) * 100) / 100;
+          
+          let status = "Unpaid";
+          let badgeClass = "bg-danger";
+          
+          if (Math.abs(balance) < 0.01) {
+            status = "Paid";
+            badgeClass = "bg-success";
+          } else if (balance < amount) {
+            status = "Half Paid";
+            badgeClass = "bg-warning";
+          }
+          
+          return (
+            <span className={`badge ${badgeClass}`}>
+              {status}
+            </span>
+          );
+        },
+      },
+      {
         header: "Description",
         accessorKey: "description",
         enableColumnFilter: false,
@@ -210,23 +609,63 @@ const Invoices = () => {
         enableColumnFilter: false,
         enableSorting: false,
         cell: (cell) => {
+          const invoice = cell.row.original;
+          const invoiceId = invoice.id;
+          const amount = parseFloat(invoice.amount || 0);
+          const paidAmount = parseFloat(invoice.paid_amount || 0);
+          const appliedCredits = parseFloat(invoice.applied_credits_total || 0);
+          const balance = Math.round((amount - paidAmount - appliedCredits) * 100) / 100;
+          const isFullyPaid = Math.abs(balance) < 0.01;
+          
           return (
-            <div className="d-flex gap-2">
+            <div className="d-flex gap-2" onClick={(e) => e.stopPropagation()}>
               <Button
                 type="button"
                 color="info"
                 size="sm"
-                onClick={() => {
-                  fetchInvoiceDetails(cell.row.original.id);
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  handleViewClick(invoiceId);
                 }}
               >
                 <i className="bx bx-show"></i> View
+              </Button>
+              {!isFullyPaid && (
+                <Button
+                  type="button"
+                  color="warning"
+                  size="sm"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handlePayClick(invoice);
+                  }}
+                >
+                  <i className="bx bx-money"></i> Pay
+                </Button>
+              )}
+              <Button
+                type="button"
+                color="success"
+                size="sm"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  handleApplyCreditClick(invoiceId);
+                }}
+              >
+                <i className="bx bx-check"></i> Apply Credit
               </Button>
               <Button
                 type="button"
                 color="primary"
                 size="sm"
-                onClick={() => navigate(`/building/${buildingId}/invoices/${cell.row.original.id}/edit`)}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  handleEditClick(invoiceId);
+                }}
               >
                 <i className="bx bx-edit"></i> Edit
               </Button>
@@ -235,7 +674,7 @@ const Invoices = () => {
         },
       },
     ],
-    [people, units, buildingId, navigate]
+    [people, units, buildingId, navigate, handleViewClick, handleApplyCreditClick, handleEditClick, handlePayClick]
   );
 
   return (
@@ -485,6 +924,468 @@ const Invoices = () => {
                 <div className="text-center">
                   <p>Loading invoice details...</p>
                 </div>
+              )}
+            </ModalBody>
+          </Modal>
+
+          {/* Apply Credit Modal */}
+          <Modal isOpen={showApplyCreditModal} toggle={() => {
+            setShowApplyCreditModal(false);
+            setSelectedInvoiceId(null);
+            setSelectedCreditMemo(null);
+            setApplyAmount(0);
+            setApplyDescription("");
+            setApplyDate(moment().format("YYYY-MM-DD"));
+          }} size="lg">
+            <ModalHeader toggle={() => {
+              setShowApplyCreditModal(false);
+              setSelectedInvoiceId(null);
+              setSelectedCreditMemo(null);
+              setApplyAmount(0);
+              setApplyDescription("");
+              setApplyDate(moment().format("YYYY-MM-DD"));
+            }}>Apply Credit to Invoice</ModalHeader>
+            <ModalBody>
+              {/* Previously Applied Credits Section */}
+              {appliedCredits.length > 0 && (
+                <div className="mb-4">
+                  <h5>Previously Applied Credits</h5>
+                  <Table bordered responsive size="sm">
+                    <thead>
+                      <tr>
+                        <th>Date</th>
+                        <th>Credit Memo ID</th>
+                        <th>Amount</th>
+                        <th>Description</th>
+                        <th>Status</th>
+                        <th>Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {appliedCredits.map((appliedCredit) => (
+                        <tr key={appliedCredit.id}>
+                          <td>{moment(appliedCredit.date).format("YYYY-MM-DD")}</td>
+                          <td>{appliedCredit.credit_memo_id}</td>
+                          <td>{parseFloat(appliedCredit.amount).toFixed(2)}</td>
+                          <td>{appliedCredit.description}</td>
+                          <td>
+                            <span className={`badge ${appliedCredit.status === "1" ? "bg-success" : "bg-secondary"}`}>
+                              {appliedCredit.status === "1" ? "Active" : "Inactive"}
+                            </span>
+                          </td>
+                          <td>
+                            {appliedCredit.status === "1" && (
+                              <Button
+                                color="danger"
+                                size="sm"
+                                onClick={() => handleDeleteAppliedCredit(appliedCredit.id)}
+                                disabled={isLoading}
+                              >
+                                <i className="bx bx-trash"></i> Delete
+                              </Button>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </Table>
+                </div>
+              )}
+              
+              {appliedCredits.length > 0 && <hr />}
+              
+              {availableCredits.length === 0 ? (
+                <div className="text-center">
+                  <p>No available credits for this invoice.</p>
+                  <Button
+                    color="secondary"
+                    onClick={() => {
+                      setShowApplyCreditModal(false);
+                      setSelectedInvoiceId(null);
+                      setSelectedCreditMemo(null);
+                      setApplyAmount(0);
+                      setApplyDescription("");
+                      setApplyDate(moment().format("YYYY-MM-DD"));
+                    }}
+                  >
+                    Close
+                  </Button>
+                </div>
+              ) : selectedCreditMemo ? (
+                <div>
+                  <Row className="mb-3">
+                    <Col md={12}>
+                      <Label>Credit Memo <span className="text-danger">*</span></Label>
+                      <Input
+                        type="select"
+                        value={selectedCreditMemo.id}
+                        onChange={(e) => {
+                          const credit = availableCredits.find(c => c.id === parseInt(e.target.value));
+                          if (credit) {
+                            setSelectedCreditMemo(credit);
+                            const roundedAmount = Math.round(credit.available_amount * 100) / 100;
+                            setApplyAmount(roundedAmount);
+                          }
+                        }}
+                      >
+                        {availableCredits.map((credit) => (
+                          <option key={credit.id} value={credit.id}>
+                            {credit.description} - Available: {Math.round(credit.available_amount * 100) / 100}
+                          </option>
+                        ))}
+                      </Input>
+                      <small className="text-muted">Available Amount: {Math.round(selectedCreditMemo.available_amount * 100) / 100}</small>
+                    </Col>
+                  </Row>
+                  <Row className="mb-3">
+                    <Col md={6}>
+                      <Label>Date <span className="text-danger">*</span></Label>
+                      <Input
+                        type="date"
+                        value={applyDate}
+                        onChange={(e) => setApplyDate(e.target.value)}
+                      />
+                    </Col>
+                    <Col md={6}>
+                      <Label>Amount <span className="text-danger">*</span></Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min="0.01"
+                        max={selectedCreditMemo.available_amount}
+                        value={applyAmount}
+                        onChange={(e) => {
+                          const value = parseFloat(e.target.value) || 0;
+                          setApplyAmount(Math.round(value * 100) / 100);
+                        }}
+                      />
+                      <small className="text-muted">Max: {Math.round(selectedCreditMemo.available_amount * 100) / 100}</small>
+                    </Col>
+                  </Row>
+                  <Row className="mb-3">
+                    <Col md={12}>
+                      <Label>Description <span className="text-danger">*</span></Label>
+                      <Input
+                        type="textarea"
+                        rows="3"
+                        value={applyDescription}
+                        onChange={(e) => setApplyDescription(e.target.value)}
+                        placeholder="Enter description for this credit application"
+                      />
+                    </Col>
+                  </Row>
+                  <div className="text-end">
+                    <Button
+                      color="info"
+                      className="me-2"
+                      onClick={previewSplits}
+                      disabled={isLoading || applyAmount <= 0 || !applyDescription}
+                    >
+                      Preview Splits
+                    </Button>
+                    <Button
+                      color="secondary"
+                      className="me-2"
+                      onClick={() => {
+                        setShowApplyCreditModal(false);
+                        setSelectedInvoiceId(null);
+                        setSelectedCreditMemo(null);
+                        setApplyAmount(0);
+                        setApplyDescription("");
+                        setApplyDate(moment().format("YYYY-MM-DD"));
+                      }}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      color="primary"
+                      onClick={handleApplyCredit}
+                      disabled={isLoading || applyAmount <= 0 || !applyDescription}
+                    >
+                      Apply Credit
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center">
+                  <p>Loading...</p>
+                </div>
+              )}
+            </ModalBody>
+          </Modal>
+
+          {/* Preview Splits Modal */}
+          <Modal isOpen={showSplitsPreviewModal} toggle={() => setShowSplitsPreviewModal(false)} size="lg">
+            <ModalHeader toggle={() => setShowSplitsPreviewModal(false)}>Preview Splits</ModalHeader>
+            <ModalBody>
+              {splitsPreview && (
+                <>
+                  <div className="table-responsive">
+                    <Table bordered striped>
+                      <thead className="table-light">
+                        <tr>
+                          <th>Account</th>
+                          <th>People</th>
+                          <th className="text-end">Debit</th>
+                          <th className="text-end">Credit</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {splitsPreview.splits.map((split, index) => (
+                          <tr key={index}>
+                            <td>{split.account_name}</td>
+                            <td>{split.people_id ? (people.find(p => p.id === split.people_id)?.name || "N/A") : "N/A"}</td>
+                            <td className="text-end">
+                              {split.debit ? parseFloat(split.debit).toFixed(2) : "-"}
+                            </td>
+                            <td className="text-end">
+                              {split.credit ? parseFloat(split.credit).toFixed(2) : "-"}
+                            </td>
+                          </tr>
+                        ))}
+                        {/* Total Row */}
+                        <tr style={{ backgroundColor: "#f8f9fa", fontWeight: "bold" }}>
+                          <td colSpan="2" className="text-end">TOTAL</td>
+                          <td className="text-end">{parseFloat(splitsPreview.total_debit || 0).toFixed(2)}</td>
+                          <td className="text-end">{parseFloat(splitsPreview.total_credit || 0).toFixed(2)}</td>
+                        </tr>
+                      </tbody>
+                    </Table>
+                  </div>
+                  <div className="mt-3">
+                    <p>
+                      <strong>Balanced:</strong> {splitsPreview.is_balanced ? "Yes ✓" : "No ✗"}
+                    </p>
+                  </div>
+                </>
+              )}
+            </ModalBody>
+          </Modal>
+
+          {/* Pay Invoice Modal */}
+          <Modal isOpen={showPayModal} toggle={() => setShowPayModal(false)} size="xl">
+            <ModalHeader toggle={() => setShowPayModal(false)}>
+              Record Payment - Invoice #{selectedInvoiceForPayment?.invoice_no}
+            </ModalHeader>
+            <ModalBody>
+              {selectedInvoiceForPayment && (
+                <div>
+                  {/* Invoice Summary */}
+                  <Row className="mb-4">
+                    <Col md={12}>
+                      <Card>
+                        <CardBody>
+                          <h6>Invoice Summary</h6>
+                          <Table bordered size="sm">
+                            <tbody>
+                              <tr>
+                                <td><strong>Invoice Amount:</strong></td>
+                                <td>{parseFloat(selectedInvoiceForPayment.amount || 0).toFixed(2)}</td>
+                              </tr>
+                              <tr>
+                                <td><strong>Paid Amount:</strong></td>
+                                <td>{parseFloat(selectedInvoiceForPayment.paid_amount || 0).toFixed(2)}</td>
+                              </tr>
+                              <tr>
+                                <td><strong>Applied Credits:</strong></td>
+                                <td>{parseFloat(selectedInvoiceForPayment.applied_credits_total || 0).toFixed(2)}</td>
+                              </tr>
+                              <tr>
+                                <td><strong>Balance:</strong></td>
+                                <td>
+                                  {(() => {
+                                    const amount = parseFloat(selectedInvoiceForPayment.amount || 0);
+                                    const paidAmount = parseFloat(selectedInvoiceForPayment.paid_amount || 0);
+                                    const appliedCredits = parseFloat(selectedInvoiceForPayment.applied_credits_total || 0);
+                                    const balance = Math.round((amount - paidAmount - appliedCredits) * 100) / 100;
+                                    return <strong>{balance.toFixed(2)}</strong>;
+                                  })()}
+                                </td>
+                              </tr>
+                            </tbody>
+                          </Table>
+                        </CardBody>
+                      </Card>
+                    </Col>
+                  </Row>
+
+                  {/* Previous Payments */}
+                  {previousPayments.length > 0 && (
+                    <Row className="mb-4">
+                      <Col md={12}>
+                        <h6>Previous Payments</h6>
+                        <Table bordered striped responsive>
+                          <thead className="table-light">
+                            <tr>
+                              <th>Date</th>
+                              <th>Account</th>
+                              <th className="text-end">Amount</th>
+                              <th>Status</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {previousPayments.map((payment) => {
+                              const account = accounts.find((a) => a.id === payment.account_id);
+                              return (
+                                <tr key={payment.id}>
+                                  <td>{moment(payment.date).format("YYYY-MM-DD")}</td>
+                                  <td>{account ? `${account.account_name} (${account.account_number})` : `ID: ${payment.account_id}`}</td>
+                                  <td className="text-end">{parseFloat(payment.amount || 0).toFixed(2)}</td>
+                                  <td>
+                                    <span className={`badge ${(payment.status === 1 || payment.status === "1") ? "bg-success" : "bg-secondary"}`}>
+                                      {(payment.status === 1 || payment.status === "1") ? "Active" : "Inactive"}
+                                    </span>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                          <tfoot>
+                            <tr style={{ backgroundColor: "#f8f9fa", fontWeight: "bold" }}>
+                              <td colSpan="2" className="text-end">Total Paid:</td>
+                              <td className="text-end">
+                                {previousPayments
+                                  .filter(p => p.status === 1 || p.status === "1")
+                                  .reduce((sum, p) => sum + parseFloat(p.amount || 0), 0)
+                                  .toFixed(2)}
+                              </td>
+                              <td></td>
+                            </tr>
+                          </tfoot>
+                        </Table>
+                      </Col>
+                    </Row>
+                  )}
+
+                  {/* Payment Form */}
+                  <Row>
+                    <Col md={12}>
+                      <h6>Record New Payment</h6>
+                      <Row className="mb-3">
+                        <Col md={6}>
+                          <Label>Date <span className="text-danger">*</span></Label>
+                          <Input
+                            type="date"
+                            value={paymentDate}
+                            onChange={(e) => setPaymentDate(e.target.value)}
+                          />
+                        </Col>
+                        <Col md={6}>
+                          <Label>Asset Account (Cash/Bank) <span className="text-danger">*</span></Label>
+                          <Input
+                            type="select"
+                            value={paymentAccountId}
+                            onChange={(e) => setPaymentAccountId(e.target.value)}
+                          >
+                            <option value="">Select Account</option>
+                            {accounts
+                              .filter((account) => {
+                                const typeName = account.account_type?.typeName || "";
+                                return typeName.toLowerCase().includes("asset") || 
+                                       typeName.toLowerCase().includes("cash") ||
+                                       typeName.toLowerCase().includes("bank");
+                              })
+                              .map((acc) => (
+                                <option key={acc.id} value={acc.id}>
+                                  {acc.account_name} ({acc.account_number})
+                                </option>
+                              ))}
+                          </Input>
+                        </Col>
+                      </Row>
+                      <Row className="mb-3">
+                        <Col md={6}>
+                          <Label>Amount <span className="text-danger">*</span></Label>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            min="0.01"
+                            value={paymentAmount}
+                            onChange={(e) => setPaymentAmount(parseFloat(e.target.value) || 0)}
+                          />
+                        </Col>
+                      </Row>
+                      <Row className="mb-3">
+                        <Col md={12}>
+                          <Button
+                            color="info"
+                            className="me-2"
+                            onClick={previewPaymentSplits}
+                            disabled={!paymentAccountId || paymentAmount <= 0}
+                          >
+                            <i className="bx bx-show"></i> Preview Splits
+                          </Button>
+                          <Button
+                            color="success"
+                            onClick={handleCreatePayment}
+                            disabled={!paymentAccountId || paymentAmount <= 0}
+                          >
+                            <i className="bx bx-check"></i> Record Payment
+                          </Button>
+                        </Col>
+                      </Row>
+                    </Col>
+                  </Row>
+                </div>
+              )}
+            </ModalBody>
+          </Modal>
+
+          {/* Payment Splits Preview Modal */}
+          <Modal isOpen={showPaymentSplitsModal} toggle={() => setShowPaymentSplitsModal(false)} size="lg">
+            <ModalHeader toggle={() => setShowPaymentSplitsModal(false)}>Payment Splits Preview</ModalHeader>
+            <ModalBody>
+              {paymentSplitsPreview && (
+                <>
+                  <div className="table-responsive">
+                    <Table bordered striped>
+                      <thead className="table-light">
+                        <tr>
+                          <th>Account</th>
+                          <th>People</th>
+                          <th className="text-end">Debit</th>
+                          <th className="text-end">Credit</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {paymentSplitsPreview.splits.map((split, index) => (
+                          <tr key={index}>
+                            <td>{split.account_name}</td>
+                            <td>{split.people_id ? (people.find(p => p.id === split.people_id)?.name || "N/A") : "N/A"}</td>
+                            <td className="text-end">
+                              {split.debit ? parseFloat(split.debit).toFixed(2) : "-"}
+                            </td>
+                            <td className="text-end">
+                              {split.credit ? parseFloat(split.credit).toFixed(2) : "-"}
+                            </td>
+                          </tr>
+                        ))}
+                        {/* Total Row */}
+                        <tr style={{ backgroundColor: "#f8f9fa", fontWeight: "bold" }}>
+                          <td colSpan="2" className="text-end">TOTAL</td>
+                          <td className="text-end">{parseFloat(paymentSplitsPreview.total_debit || 0).toFixed(2)}</td>
+                          <td className="text-end">{parseFloat(paymentSplitsPreview.total_credit || 0).toFixed(2)}</td>
+                        </tr>
+                      </tbody>
+                    </Table>
+                  </div>
+                  <div className="mt-3">
+                    <p>
+                      <strong>Balanced:</strong> {paymentSplitsPreview.is_balanced ? "Yes ✓" : "No ✗"}
+                    </p>
+                  </div>
+                  <div className="mt-3">
+                    <Button
+                      color="success"
+                      onClick={() => {
+                        setShowPaymentSplitsModal(false);
+                        handleCreatePayment();
+                      }}
+                    >
+                      <i className="bx bx-check"></i> Confirm and Record Payment
+                    </Button>
+                  </div>
+                </>
               )}
             </ModalBody>
           </Modal>

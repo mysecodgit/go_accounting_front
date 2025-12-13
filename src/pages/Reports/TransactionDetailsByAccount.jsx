@@ -27,6 +27,7 @@ const TransactionDetailsByAccount = () => {
   const [isLoading, setLoading] = useState(false);
   const [report, setReport] = useState(null);
   const [accounts, setAccounts] = useState([]);
+  const [units, setUnits] = useState([]);
 
   const validation = useFormik({
     enableReinitialize: true,
@@ -34,14 +35,16 @@ const TransactionDetailsByAccount = () => {
       start_date: moment().subtract(30, "days").format("YYYY-MM-DD"),
       end_date: moment().format("YYYY-MM-DD"),
       account_id: "",
+      unit_id: "",
     },
     validationSchema: Yup.object({
       start_date: Yup.string().required("Start date is required"),
       end_date: Yup.string().required("End date is required"),
       account_id: Yup.number(),
+      unit_id: Yup.number(),
     }),
     onSubmit: async (values) => {
-      await fetchReport(values.start_date, values.end_date, values.account_id);
+      await fetchReport(values.start_date, values.end_date, values.account_id, values.unit_id);
     },
   });
 
@@ -58,7 +61,20 @@ const TransactionDetailsByAccount = () => {
     }
   };
 
-  const fetchReport = async (startDate, endDate, accountId) => {
+  const fetchUnits = async () => {
+    try {
+      let url = "units";
+      if (buildingId) {
+        url = `buildings/${buildingId}/units`;
+      }
+      const { data } = await axiosInstance.get(url);
+      setUnits(data || []);
+    } catch (error) {
+      console.log("Error fetching units", error);
+    }
+  };
+
+  const fetchReport = async (startDate, endDate, accountId, unitId) => {
     if (!buildingId) {
       toast.error("Building ID is required");
       return;
@@ -69,6 +85,9 @@ const TransactionDetailsByAccount = () => {
       let url = `buildings/${buildingId}/reports/transaction-details-by-account?start_date=${startDate}&end_date=${endDate}`;
       if (accountId) {
         url += `&account_id=${accountId}`;
+      }
+      if (unitId) {
+        url += `&unit_id=${unitId}`;
       }
       const { data } = await axiosInstance.get(url);
       setReport(data);
@@ -82,6 +101,7 @@ const TransactionDetailsByAccount = () => {
 
   useEffect(() => {
     fetchAccounts();
+    fetchUnits();
   }, [buildingId]);
 
   return (
@@ -129,6 +149,23 @@ const TransactionDetailsByAccount = () => {
                         {accounts.map((account) => (
                           <option key={account.id} value={account.id}>
                             {account.account_name} ({account.account_number})
+                          </option>
+                        ))}
+                      </Input>
+                    </Col>
+                    <Col md={3}>
+                      <Label>Unit (Optional)</Label>
+                      <Input
+                        name="unit_id"
+                        type="select"
+                        onChange={validation.handleChange}
+                        onBlur={validation.handleBlur}
+                        value={validation.values.unit_id || ""}
+                      >
+                        <option value="">All Units</option>
+                        {units.map((unit) => (
+                          <option key={unit.id} value={unit.id}>
+                            {unit.unit_number || unit.name || `Unit ${unit.id}`}
                           </option>
                         ))}
                       </Input>
