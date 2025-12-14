@@ -174,5 +174,10 @@
   "Account Types": "Account Types",
   "People Types": "People Types",
   "Users": "Users",
-  "Switch Building": "Switch Building"
+  "Switch Building": "Switch Building",
+  "Credit Memos": "Credit Memos",
+  "Leases": "Leases",
+  "Checks": "Checks",
+  "Journals": "Journals",
+  "Transaction Details by Account": "Transaction Details by Account"
 }

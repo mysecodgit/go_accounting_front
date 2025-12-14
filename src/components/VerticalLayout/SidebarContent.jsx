@@ -280,6 +280,12 @@ const SidebarContent = (props) => {
                         <span>{props.t("Credit Memos")}</span>
                       </Link>
                     </li>
+                    <li>
+                      <Link to={buildRoute("/leases")}>
+                        <i className="bx bx-file-blank"></i>
+                        <span>{props.t("Leases")}</span>
+                      </Link>
+                    </li>
                   </ul>
                 </li>
 
