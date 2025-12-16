@@ -43,12 +43,28 @@ const CreateInvoice = () => {
   const [userId, setUserId] = useState(1); // TODO: Get from auth context
   const [readings, setReadings] = useState([]);
 
+  // Load dates from localStorage if available
+  const getInitialSalesDate = () => {
+    const saved = localStorage.getItem(`create_invoice_sales_date_${buildingId}`);
+    return saved || moment().format("YYYY-MM-DD");
+  };
+
+  const getInitialDueDate = () => {
+    const saved = localStorage.getItem(`create_invoice_due_date_${buildingId}`);
+    if (saved) {
+      return saved;
+    }
+    // If no saved due_date, calculate from sales_date
+    const salesDate = getInitialSalesDate();
+    return moment(salesDate).add(30, "days").format("YYYY-MM-DD");
+  };
+
   const validation = useFormik({
     enableReinitialize: true,
     initialValues: {
       invoice_no: nextInvoiceNo,
-      sales_date: moment().format("YYYY-MM-DD"),
-      due_date: moment().add(30, "days").format("YYYY-MM-DD"),
+      sales_date: getInitialSalesDate(),
+      due_date: getInitialDueDate(),
       unit_id: "",
       people_id: "",
       ar_account_id: "",
@@ -65,7 +81,7 @@ const CreateInvoice = () => {
       people_id: Yup.number().required("People/Customer is required").min(1, "Please select a people/customer"),
       ar_account_id: Yup.number().required("A/R Account is required").min(1, "Please select an A/R account"),
       amount: Yup.number().required("Amount is required"),
-      description: Yup.string().required("Description is required"),
+      description: Yup.string(),
       status: Yup.number().oneOf([0, 1]),
       building_id: Yup.number().required("Building ID is required"),
     }),
@@ -84,8 +100,9 @@ const CreateInvoice = () => {
           building_id: parseInt(values.building_id),
           items: invoiceItems.map((item) => ({
             item_id: parseInt(item.item_id),
-            qty: item.qty,
+            qty: item.qty !== null && item.qty !== undefined ? item.qty : null, // Send qty as-is without rounding
             rate: item.rate ? item.rate.toString() : null,
+            total: item.total !== null && item.total !== undefined ? item.total : null, // Send manually edited total
             previous_value: item.previous_value !== null && item.previous_value !== undefined ? item.previous_value : null,
             current_value: item.current_value !== null && item.current_value !== undefined ? item.current_value : null,
           })),
@@ -242,6 +259,20 @@ const CreateInvoice = () => {
     }
   }, [validation.values.unit_id]);
 
+  // Save sales_date to localStorage when it changes
+  useEffect(() => {
+    if (validation.values.sales_date) {
+      localStorage.setItem(`create_invoice_sales_date_${buildingId}`, validation.values.sales_date);
+    }
+  }, [validation.values.sales_date, buildingId]);
+
+  // Save due_date to localStorage when it changes
+  useEffect(() => {
+    if (validation.values.due_date) {
+      localStorage.setItem(`create_invoice_due_date_${buildingId}`, validation.values.due_date);
+    }
+  }, [validation.values.due_date, buildingId]);
+
   const addInvoiceItem = () => {
     setInvoiceItems([
       ...invoiceItems,
@@ -255,6 +286,55 @@ const CreateInvoice = () => {
         total: 0,
       },
     ]);
+  };
+
+  const addReadingAsInvoiceItem = (readingItem) => {
+    const reading = readingItem.reading;
+    const item = readingItem.item;
+    
+    if (!item || !item.id) {
+      toast.error("Item information not available for this reading");
+      return;
+    }
+
+    // Check if this reading is already added
+    const alreadyAdded = invoiceItems.some(
+      (invItem) => invItem.item_id === item.id.toString() && 
+                   invItem.previous_value === (reading.previous_value || null) &&
+                   invItem.current_value === (reading.current_value || null)
+    );
+
+    if (alreadyAdded) {
+      toast.info("This reading has already been added to the invoice");
+      return;
+    }
+
+    // Calculate consumption
+    const prev = reading.previous_value || 0;
+    const current = reading.current_value || 0;
+    const consumption = current - prev;
+    const unitPrice = reading.unit_price || 0;
+    const total = reading.total_amount || 0;
+
+    // Add the reading as an invoice item
+    const newItem = {
+      item_id: item.id.toString(),
+      qty: consumption > 0 ? consumption : 1,
+      rate: unitPrice > 0 ? unitPrice : total,
+      previous_value: reading.previous_value || null,
+      current_value: reading.current_value || null,
+      item_name: item.name || "",
+      total: total || 0,
+    };
+
+    setInvoiceItems([...invoiceItems, newItem]);
+    
+    // Recalculate totals and splits
+    const updatedItems = [...invoiceItems, newItem];
+    calculateTotal(updatedItems);
+    calculateSplits(updatedItems);
+    
+    toast.success(`Added ${item.name} to invoice items`);
   };
 
   const removeInvoiceItem = (index) => {
@@ -309,6 +389,12 @@ const CreateInvoice = () => {
       } else {
         newItems[index].total = 0;
       }
+    }
+    
+    // If total is manually edited, don't recalculate from qty/rate
+    if (field === "total") {
+      // Total was manually edited, keep it as is
+      newItems[index].total = value;
     }
 
     setInvoiceItems(newItems);
@@ -562,7 +648,19 @@ const CreateInvoice = () => {
                           <Input
                             name="sales_date"
                             type="date"
-                            onChange={validation.handleChange}
+                            onChange={(e) => {
+                              validation.handleChange(e);
+                              // Update invoice number if unit is already selected
+                              const selectedUnitId = validation.values.unit_id;
+                              if (selectedUnitId) {
+                                const selectedUnit = units.find((u) => u.id === parseInt(selectedUnitId));
+                                if (selectedUnit && e.target.value) {
+                                  const month = moment(e.target.value).format("MMM").toUpperCase();
+                                  const invoiceNo = `${selectedUnit.name}-${month}`;
+                                  validation.setFieldValue("invoice_no", invoiceNo);
+                                }
+                              }
+                            }}
                             onBlur={validation.handleBlur}
                             value={validation.values.sales_date || ""}
                             invalid={validation.touched.sales_date && validation.errors.sales_date ? true : false}
@@ -594,7 +692,19 @@ const CreateInvoice = () => {
                           <Input
                             name="unit_id"
                             type="select"
-                            onChange={validation.handleChange}
+                            onChange={(e) => {
+                              validation.handleChange(e);
+                              // Prefill invoice number with format: UNITNAME-MONTH
+                              const selectedUnitId = e.target.value;
+                              if (selectedUnitId) {
+                                const selectedUnit = units.find((u) => u.id === parseInt(selectedUnitId));
+                                if (selectedUnit && validation.values.sales_date) {
+                                  const month = moment(validation.values.sales_date).format("MMM").toUpperCase();
+                                  const invoiceNo = `${selectedUnit.name}-${month}`;
+                                  validation.setFieldValue("invoice_no", invoiceNo);
+                                }
+                              }
+                            }}
                             onBlur={validation.handleBlur}
                             value={validation.values.unit_id || ""}
                             invalid={validation.touched.unit_id && validation.errors.unit_id ? true : false}
@@ -794,7 +904,32 @@ const CreateInvoice = () => {
                                         placeholder={isDiscountOrPayment ? "Enter amount (will be negative)" : ""}
                                       />
                                     </td>
-                                    <td>{item.total ? item.total.toFixed(2) : "0.00"}</td>
+                                    <td>
+                                      <Input
+                                        type="number"
+                                        step="0.01"
+                                        min="0"
+                                        value={item.total ? parseFloat(item.total).toFixed(2) : "0.00"}
+                                        onChange={(e) => {
+                                          const inputValue = e.target.value;
+                                          // Allow empty input during typing
+                                          if (inputValue === "" || inputValue === "-") {
+                                            return;
+                                          }
+                                          const newTotal = parseFloat(inputValue) || 0;
+                                          // Round to 2 decimal places
+                                          const roundedTotal = Math.round(newTotal * 100) / 100;
+                                          updateInvoiceItem(index, "total", roundedTotal);
+                                        }}
+                                        onBlur={(e) => {
+                                          // Ensure 2 decimal places on blur
+                                          const value = parseFloat(e.target.value) || 0;
+                                          const roundedValue = Math.round(value * 100) / 100;
+                                          updateInvoiceItem(index, "total", roundedValue);
+                                        }}
+                                        style={{ width: "100px" }}
+                                      />
+                                    </td>
                                     <td>
                                       <Button
                                         type="button"
@@ -873,7 +1008,21 @@ const CreateInvoice = () => {
                               const unitPrice = readingItem.reading.unit_price || 0;
                               const total = readingItem.reading.total_amount || 0;
                               return (
-                                <tr key={readingItem.reading.id}>
+                                <tr 
+                                  key={readingItem.reading.id}
+                                  onClick={() => addReadingAsInvoiceItem(readingItem)}
+                                  style={{ 
+                                    cursor: "pointer",
+                                    transition: "background-color 0.2s"
+                                  }}
+                                  onMouseEnter={(e) => {
+                                    e.currentTarget.style.backgroundColor = "#f8f9fa";
+                                  }}
+                                  onMouseLeave={(e) => {
+                                    e.currentTarget.style.backgroundColor = "";
+                                  }}
+                                  title="Click to add this reading to invoice items"
+                                >
                                   <td>{readingItem.item?.name || "N/A"}</td>
                                   <td>
                                     {readingItem.reading.reading_date

@@ -41,11 +41,17 @@ const CreateInvoicePayment = () => {
   const [showSplitsModal, setShowSplitsModal] = useState(false);
   const [userId] = useState(1); // TODO: Get from auth context
 
+  // Load date from localStorage if available
+  const getInitialDate = () => {
+    const saved = localStorage.getItem(`create_invoice_payment_date_${buildingId}`);
+    return saved || moment().format("YYYY-MM-DD");
+  };
+
   const validation = useFormik({
     enableReinitialize: true,
     initialValues: {
       reference: "",
-      date: moment().format("YYYY-MM-DD"),
+      date: getInitialDate(),
       invoice_id: "",
       account_id: "",
       amount: 0,
@@ -201,6 +207,8 @@ const CreateInvoicePayment = () => {
       }
 
       const { data } = await axiosInstance.post(url, payload);
+      console.log("Preview splits response:", data);
+      console.log("First split:", data?.splits?.[0]);
       setSplitsPreview(data);
       setShowSplitsModal(true);
     } catch (err) {
@@ -210,6 +218,13 @@ const CreateInvoicePayment = () => {
       setLoading(false);
     }
   };
+
+  // Save date to localStorage whenever it changes
+  useEffect(() => {
+    if (validation.values.date) {
+      localStorage.setItem(`create_invoice_payment_date_${buildingId}`, validation.values.date);
+    }
+  }, [validation.values.date, buildingId]);
 
   useEffect(() => {
     fetchInvoices();
@@ -399,26 +414,35 @@ const CreateInvoicePayment = () => {
                     <tr>
                       <th>Account</th>
                       <th>People</th>
+                      <th>Unit</th>
                       <th className="text-end">Debit</th>
                       <th className="text-end">Credit</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {splitsPreview.splits.map((split, index) => (
-                      <tr key={index}>
-                        <td>{getAccountName(split.account_id)}</td>
-                        <td>{getPeopleName(split.people_id)}</td>
-                        <td className="text-end">
-                          {split.debit ? parseFloat(split.debit).toFixed(2) : "-"}
-                        </td>
-                        <td className="text-end">
-                          {split.credit ? parseFloat(split.credit).toFixed(2) : "-"}
-                        </td>
-                      </tr>
-                    ))}
+                    {splitsPreview.splits.map((split, index) => {
+                      // Handle both camelCase and snake_case for unit_id, and handle null values
+                      const unitId = split.unit_id !== null && split.unit_id !== undefined 
+                        ? split.unit_id 
+                        : (split.unitId !== null && split.unitId !== undefined ? split.unitId : null);
+                      const unit = unitId ? units.find((u) => u.id === unitId) : null;
+                      return (
+                        <tr key={index}>
+                          <td>{getAccountName(split.account_id)}</td>
+                          <td>{getPeopleName(split.people_id)}</td>
+                          <td>{unit ? unit.name : unitId ? `ID: ${unitId}` : "N/A"}</td>
+                          <td className="text-end">
+                            {split.debit ? parseFloat(split.debit).toFixed(2) : "-"}
+                          </td>
+                          <td className="text-end">
+                            {split.credit ? parseFloat(split.credit).toFixed(2) : "-"}
+                          </td>
+                        </tr>
+                      );
+                    })}
                     {/* Total Row */}
                     <tr style={{ backgroundColor: "#f8f9fa", fontWeight: "bold" }}>
-                      <td colSpan="2" className="text-end">TOTAL</td>
+                      <td colSpan="3" className="text-end">TOTAL</td>
                       <td className="text-end">{parseFloat(splitsPreview.total_debit || 0).toFixed(2)}</td>
                       <td className="text-end">{parseFloat(splitsPreview.total_credit || 0).toFixed(2)}</td>
                     </tr>

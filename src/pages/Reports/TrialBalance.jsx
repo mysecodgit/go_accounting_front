@@ -92,19 +92,19 @@ const TrialBalance = () => {
         return <>{row.original.account_name || "-"}</>;
       },
     },
-    {
-      id: "account_type",
-      header: "Account Type",
-      accessorKey: "account_type",
-      enableColumnFilter: false,
-      enableSorting: false,
-      cell: ({ row }) => {
-        if (row.original.is_total_row) {
-          return <>-</>;
-        }
-        return <>{row.original.account_type || "-"}</>;
-      },
-    },
+    // {
+    //   id: "account_type",
+    //   header: "Account Type",
+    //   accessorKey: "account_type",
+    //   enableColumnFilter: false,
+    //   enableSorting: false,
+    //   cell: ({ row }) => {
+    //     if (row.original.is_total_row) {
+    //       return <>-</>;
+    //     }
+    //     return <>{row.original.account_type || "-"}</>;
+    //   },
+    // },
     {
       id: "debit_balance",
       header: "Debit",
@@ -171,8 +171,8 @@ const TrialBalance = () => {
                   {isLoading && <Spinners />}
 
                   {report && !isLoading && (
-                    <div>
-                      <Row className="mb-3">
+                    <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+                      <Row className="mb-3" style={{ width: "60%", textAlign: "center" }}>
                         <Col>
                           <h5>Trial Balance</h5>
                           <p className="text-muted">
@@ -190,14 +190,16 @@ const TrialBalance = () => {
                         </Col>
                       </Row>
 
-                      <TableContainer
-                        columns={columns}
-                        data={report.accounts || []}
-                        isGlobalFilter={true}
-                        isPagination={false}
-                        tableClass="table-hover dt-responsive nowrap w-100 dataTable no-footer dtr-inline"
-                        theadClass="table-light"
-                      />
+                      <div style={{ width: "30%", margin: "0 auto" }}>
+                        <TableContainer
+                          columns={columns}
+                          data={report.accounts || []}
+                          isGlobalFilter={true}
+                          isPagination={false}
+                          tableClass="table-hover dt-responsive nowrap w-100 dataTable no-footer dtr-inline"
+                          theadClass="table-light"
+                        />
+                      </div>
                     </div>
                   )}
                 </CardBody>

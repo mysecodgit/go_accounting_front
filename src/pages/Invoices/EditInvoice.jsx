@@ -64,7 +64,7 @@ const EditInvoice = () => {
       people_id: Yup.number().required("People/Customer is required").min(1, "Please select a people/customer"),
       ar_account_id: Yup.number().required("A/R Account is required").min(1, "Please select an A/R account"),
       amount: Yup.number().required("Amount is required"),
-      description: Yup.string().required("Description is required"),
+      description: Yup.string(),
       status: Yup.number().oneOf([0, 1]),
       building_id: Yup.number().required("Building ID is required"),
     }),
@@ -84,8 +84,9 @@ const EditInvoice = () => {
           building_id: parseInt(values.building_id),
           items: invoiceItems.map((item) => ({
             item_id: parseInt(item.item_id),
-            qty: item.qty,
+            qty: item.qty !== null && item.qty !== undefined ? item.qty : null, // Send qty as-is without rounding
             rate: item.rate ? item.rate.toString() : null,
+            total: item.total !== null && item.total !== undefined ? item.total : null, // Send manually edited total
             previous_value: item.previous_value !== null && item.previous_value !== undefined ? item.previous_value : null,
             current_value: item.current_value !== null && item.current_value !== undefined ? item.current_value : null,
           })),
@@ -329,6 +330,12 @@ const EditInvoice = () => {
       } else {
         newItems[index].total = 0;
       }
+    }
+    
+    // If total is manually edited, don't recalculate from qty/rate
+    if (field === "total") {
+      // Total was manually edited, keep it as is
+      newItems[index].total = value;
     }
 
     setInvoiceItems(newItems);
@@ -818,7 +825,32 @@ const EditInvoice = () => {
                                         placeholder={isDiscountOrPayment ? "Enter amount (will be negative)" : ""}
                                       />
                                     </td>
-                                    <td>{item.total ? item.total.toFixed(2) : "0.00"}</td>
+                                    <td>
+                                      <Input
+                                        type="number"
+                                        step="0.01"
+                                        min="0"
+                                        value={item.total ? parseFloat(item.total).toFixed(2) : "0.00"}
+                                        onChange={(e) => {
+                                          const inputValue = e.target.value;
+                                          // Allow empty input during typing
+                                          if (inputValue === "" || inputValue === "-") {
+                                            return;
+                                          }
+                                          const newTotal = parseFloat(inputValue) || 0;
+                                          // Round to 2 decimal places
+                                          const roundedTotal = Math.round(newTotal * 100) / 100;
+                                          updateInvoiceItem(index, "total", roundedTotal);
+                                        }}
+                                        onBlur={(e) => {
+                                          // Ensure 2 decimal places on blur
+                                          const value = parseFloat(e.target.value) || 0;
+                                          const roundedValue = Math.round(value * 100) / 100;
+                                          updateInvoiceItem(index, "total", roundedValue);
+                                        }}
+                                        style={{ width: "100px" }}
+                                      />
+                                    </td>
                                     <td>
                                       <Button
                                         type="button"

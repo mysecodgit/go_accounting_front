@@ -32,6 +32,24 @@ const Invoices = () => {
   const [units, setUnits] = useState([]);
   const [people, setPeople] = useState([]);
   const [accounts, setAccounts] = useState([]);
+  
+  // Filter states with defaults - load from localStorage if available
+  const [filterStartDate, setFilterStartDate] = useState(() => {
+    const saved = localStorage.getItem(`invoice_filter_start_date_${buildingId}`);
+    return saved || moment().startOf('month').format("YYYY-MM-DD");
+  });
+  const [filterEndDate, setFilterEndDate] = useState(() => {
+    const saved = localStorage.getItem(`invoice_filter_end_date_${buildingId}`);
+    return saved || moment().endOf('month').format("YYYY-MM-DD");
+  });
+  const [filterPeopleId, setFilterPeopleId] = useState(() => {
+    const saved = localStorage.getItem(`invoice_filter_people_id_${buildingId}`);
+    return saved || "";
+  });
+  const [filterStatus, setFilterStatus] = useState(() => {
+    const saved = localStorage.getItem(`invoice_filter_status_${buildingId}`);
+    return saved || "1"; // Default to active
+  });
   const [viewingInvoice, setViewingInvoice] = useState(null);
   const [showInvoiceDetailsModal, setShowInvoiceDetailsModal] = useState(false);
   const [availableCredits, setAvailableCredits] = useState([]);
@@ -49,7 +67,13 @@ const Invoices = () => {
   const [selectedInvoiceForPayment, setSelectedInvoiceForPayment] = useState(null);
   const [previousPayments, setPreviousPayments] = useState([]);
   const [paymentReference, setPaymentReference] = useState("");
-  const [paymentDate, setPaymentDate] = useState(moment().format("YYYY-MM-DD"));
+  // Load payment date from localStorage if available
+  const getInitialPaymentDate = () => {
+    const saved = localStorage.getItem(`create_invoice_payment_date_${buildingId}`);
+    return saved || moment().format("YYYY-MM-DD");
+  };
+
+  const [paymentDate, setPaymentDate] = useState(getInitialPaymentDate());
   const [paymentAccountId, setPaymentAccountId] = useState("");
   const [paymentAmount, setPaymentAmount] = useState(0);
   const [paymentSplitsPreview, setPaymentSplitsPreview] = useState(null);
@@ -75,11 +99,20 @@ const Invoices = () => {
         url = `buildings/${buildingId}/people`;
       }
       const { data } = await axiosInstance.get(url);
+      // Store all people for mapping people_id to names in the table
       setPeople(data || []);
     } catch (error) {
       console.log("Error fetching people", error);
     }
   };
+  
+  // Get customers only for the dropdown filter
+  const customers = useMemo(() => {
+    return (people || []).filter(person => 
+      person.people_type?.title?.toLowerCase() === "customer" || 
+      person.people_type?.Title?.toLowerCase() === "customer"
+    );
+  }, [people]);
 
   const fetchAccounts = async () => {
     try {
@@ -94,7 +127,7 @@ const Invoices = () => {
     }
   };
 
-  const fetchInvoices = async () => {
+  const fetchInvoices = useCallback(async () => {
     try {
       setLoading(true);
       let url = "invoices";
@@ -103,15 +136,32 @@ const Invoices = () => {
       } else {
         url = `invoices?building_id=${buildingId || ""}`;
       }
-      const { data } = await axiosInstance.get(url);
+      
+      // Add filter parameters
+      const params = {};
+      if (filterStartDate) {
+        params.start_date = filterStartDate;
+      }
+      if (filterEndDate) {
+        params.end_date = filterEndDate;
+      }
+      if (filterPeopleId) {
+        params.people_id = filterPeopleId;
+      }
+      if (filterStatus) {
+        params.status = filterStatus;
+      }
+      
+      const { data } = await axiosInstance.get(url, { params });
       setInvoices(data || []);
     } catch (error) {
       console.log("Error fetching invoices", error);
       toast.error("Failed to fetch invoices");
+      setInvoices([]);
     } finally {
       setLoading(false);
     }
-  };
+  }, [buildingId, filterStartDate, filterEndDate, filterPeopleId, filterStatus]);
 
   const fetchInvoiceDetails = useCallback(async (invoiceId) => {
     try {
@@ -259,12 +309,38 @@ const Invoices = () => {
     }
   };
 
+  // Save filters to localStorage whenever they change
+  useEffect(() => {
+    if (filterStartDate) {
+      localStorage.setItem(`invoice_filter_start_date_${buildingId}`, filterStartDate);
+    }
+  }, [filterStartDate, buildingId]);
+
+  useEffect(() => {
+    if (filterEndDate) {
+      localStorage.setItem(`invoice_filter_end_date_${buildingId}`, filterEndDate);
+    }
+  }, [filterEndDate, buildingId]);
+
+  useEffect(() => {
+    localStorage.setItem(`invoice_filter_people_id_${buildingId}`, filterPeopleId);
+  }, [filterPeopleId, buildingId]);
+
+  useEffect(() => {
+    if (filterStatus) {
+      localStorage.setItem(`invoice_filter_status_${buildingId}`, filterStatus);
+    }
+  }, [filterStatus, buildingId]);
+
   useEffect(() => {
     fetchUnits();
     fetchPeople();
     fetchAccounts();
-    fetchInvoices();
   }, [buildingId]);
+
+  useEffect(() => {
+    fetchInvoices();
+  }, [fetchInvoices]);
 
   // Handler functions
   const handleViewClick = useCallback((invoiceId) => {
@@ -335,8 +411,23 @@ const Invoices = () => {
 
   const handlePayClick = useCallback(async (invoice) => {
     setSelectedInvoiceForPayment(invoice);
-    setPaymentReference("");
-    setPaymentDate(moment().format("YYYY-MM-DD"));
+    
+    // Prefill payment reference with format: UNITNAME-MONTH-PMT
+    let paymentRef = "";
+    if (invoice.unit_id) {
+      const unit = units.find((u) => u.id === invoice.unit_id);
+      if (unit) {
+        const savedDate = localStorage.getItem(`create_invoice_payment_date_${buildingId}`);
+        const dateToUse = savedDate || moment().format("YYYY-MM-DD");
+        const month = moment(dateToUse).format("MMM").toUpperCase();
+        paymentRef = `${unit.name}-${month}-PMT`;
+      }
+    }
+    setPaymentReference(paymentRef);
+    
+    // Load date from localStorage or use current date
+    const savedDate = localStorage.getItem(`create_invoice_payment_date_${buildingId}`);
+    setPaymentDate(savedDate || moment().format("YYYY-MM-DD"));
     setPaymentAccountId("");
     
     // Calculate balance to prefill payment amount
@@ -443,11 +534,12 @@ const Invoices = () => {
       // Refresh previous payments
       await fetchPreviousPayments(selectedInvoiceForPayment.id);
       
-      // Reset form
+      // Reset form (but keep date from localStorage)
       setPaymentReference("");
       setPaymentAmount(0);
       setPaymentAccountId("");
-      setPaymentDate(moment().format("YYYY-MM-DD"));
+      const savedDate = localStorage.getItem(`create_invoice_payment_date_${buildingId}`);
+      setPaymentDate(savedDate || moment().format("YYYY-MM-DD"));
       
       // Refresh invoices list
       await fetchInvoices();
@@ -492,8 +584,12 @@ const Invoices = () => {
         enableColumnFilter: false,
         enableSorting: true,
         cell: (cell) => {
-          const person = people.find((p) => p.id === cell.row.original.people_id);
-          return <>{person ? person.name : `ID: ${cell.row.original.people_id || "N/A"}`}</>;
+          const peopleId = cell.row.original.people_id;
+          if (!peopleId) {
+            return <>N/A</>;
+          }
+          const person = people.find((p) => p.id === peopleId || p.id === parseInt(peopleId) || parseInt(p.id) === peopleId);
+          return <>{person ? person.name : `ID: ${peopleId}`}</>;
         },
       },
       {
@@ -649,18 +745,20 @@ const Invoices = () => {
                   <i className="bx bx-money"></i> Pay
                 </Button>
               )}
-              <Button
-                type="button"
-                color="success"
-                size="sm"
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  handleApplyCreditClick(invoiceId);
-                }}
-              >
-                <i className="bx bx-check"></i> Apply Credit
-              </Button>
+              {!isFullyPaid && (
+                <Button
+                  type="button"
+                  color="success"
+                  size="sm"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleApplyCreditClick(invoiceId);
+                  }}
+                >
+                  <i className="bx bx-check"></i> Apply Credit
+                </Button>
+              )}
               <Button
                 type="button"
                 color="primary"
@@ -696,6 +794,62 @@ const Invoices = () => {
               </Button>
             </Col>
           </Row>
+          
+          {/* Filters */}
+          <Row className="mb-3">
+            <Col lg={12}>
+              <Card>
+                <CardBody>
+                  <Row>
+                    <Col md={3}>
+                      <Label>Start Date</Label>
+                      <Input
+                        type="date"
+                        value={filterStartDate}
+                        onChange={(e) => setFilterStartDate(e.target.value)}
+                      />
+                    </Col>
+                    <Col md={3}>
+                      <Label>End Date</Label>
+                      <Input
+                        type="date"
+                        value={filterEndDate}
+                        onChange={(e) => setFilterEndDate(e.target.value)}
+                      />
+                    </Col>
+                    <Col md={3}>
+                      <Label>Customer</Label>
+                      <Input
+                        type="select"
+                        value={filterPeopleId}
+                        onChange={(e) => setFilterPeopleId(e.target.value)}
+                      >
+                        <option value="">All Customers</option>
+                        {customers.map((person) => (
+                          <option key={person.id} value={person.id}>
+                            {person.name}
+                          </option>
+                        ))}
+                      </Input>
+                    </Col>
+                    <Col md={3}>
+                      <Label>Status</Label>
+                      <Input
+                        type="select"
+                        value={filterStatus}
+                        onChange={(e) => setFilterStatus(e.target.value)}
+                      >
+                        <option value="">All</option>
+                        <option value="1">Active</option>
+                        <option value="0">Inactive</option>
+                      </Input>
+                    </Col>
+                  </Row>
+                </CardBody>
+              </Card>
+            </Col>
+          </Row>
+          
           {isLoading ? (
             <Spinners setLoading={setLoading} />
           ) : (
@@ -709,7 +863,7 @@ const Invoices = () => {
                       isGlobalFilter={true}
                       isPagination={false}
                       SearchPlaceholder="Search..."
-                      isCustomPageSize={true}
+                      isCustomPageSize={false}
                       tableClass="align-middle table-nowrap table-hover dt-responsive nowrap w-100 dataTable no-footer dtr-inline"
                       theadClass="table-light"
                       paginationWrapper="dataTables_paginate paging_simple_numbers pagination-rounded"
@@ -1283,7 +1437,20 @@ const Invoices = () => {
                           <Input
                             type="date"
                             value={paymentDate}
-                            onChange={(e) => setPaymentDate(e.target.value)}
+                            onChange={(e) => {
+                              const newDate = e.target.value;
+                              setPaymentDate(newDate);
+                              // Save to localStorage to share with Create Invoice Payment page
+                              localStorage.setItem(`create_invoice_payment_date_${buildingId}`, newDate);
+                              // Update payment reference if unit is available
+                              if (selectedInvoiceForPayment?.unit_id) {
+                                const unit = units.find((u) => u.id === selectedInvoiceForPayment.unit_id);
+                                if (unit && newDate) {
+                                  const month = moment(newDate).format("MMM").toUpperCase();
+                                  setPaymentReference(`${unit.name}-${month}-PMT`);
+                                }
+                              }
+                            }}
                           />
                         </Col>
                       </Row>
@@ -1361,26 +1528,31 @@ const Invoices = () => {
                         <tr>
                           <th>Account</th>
                           <th>People</th>
+                          <th>Unit</th>
                           <th className="text-end">Debit</th>
                           <th className="text-end">Credit</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {paymentSplitsPreview.splits.map((split, index) => (
-                          <tr key={index}>
-                            <td>{split.account_name}</td>
-                            <td>{split.people_id ? (people.find(p => p.id === split.people_id)?.name || "N/A") : "N/A"}</td>
-                            <td className="text-end">
-                              {split.debit ? parseFloat(split.debit).toFixed(2) : "-"}
-                            </td>
-                            <td className="text-end">
-                              {split.credit ? parseFloat(split.credit).toFixed(2) : "-"}
-                            </td>
-                          </tr>
-                        ))}
+                        {paymentSplitsPreview.splits.map((split, index) => {
+                          const unit = split.unit_id ? units.find((u) => u.id === split.unit_id) : null;
+                          return (
+                            <tr key={index}>
+                              <td>{split.account_name}</td>
+                              <td>{split.people_id ? (people.find(p => p.id === split.people_id)?.name || "N/A") : "N/A"}</td>
+                              <td>{unit ? unit.name : split.unit_id ? `ID: ${split.unit_id}` : "N/A"}</td>
+                              <td className="text-end">
+                                {split.debit ? parseFloat(split.debit).toFixed(2) : "-"}
+                              </td>
+                              <td className="text-end">
+                                {split.credit ? parseFloat(split.credit).toFixed(2) : "-"}
+                              </td>
+                            </tr>
+                          );
+                        })}
                         {/* Total Row */}
                         <tr style={{ backgroundColor: "#f8f9fa", fontWeight: "bold" }}>
-                          <td colSpan="2" className="text-end">TOTAL</td>
+                          <td colSpan="3" className="text-end">TOTAL</td>
                           <td className="text-end">{parseFloat(paymentSplitsPreview.total_debit || 0).toFixed(2)}</td>
                           <td className="text-end">{parseFloat(paymentSplitsPreview.total_credit || 0).toFixed(2)}</td>
                         </tr>

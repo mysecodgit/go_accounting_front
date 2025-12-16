@@ -13,6 +13,8 @@ import {
   ModalHeader,
   ModalBody,
   Table,
+  Label,
+  Input,
 } from "reactstrap";
 import Breadcrumbs from "/src/components/Common/Breadcrumb";
 import { ToastContainer, toast } from "react-toastify";
@@ -33,6 +35,24 @@ const InvoicePayments = () => {
   const [people, setPeople] = useState([]);
   const [viewingPayment, setViewingPayment] = useState(null);
   const [showViewModal, setShowViewModal] = useState(false);
+  
+  // Filter states with defaults - load from localStorage if available
+  const [filterStartDate, setFilterStartDate] = useState(() => {
+    const saved = localStorage.getItem(`invoice_payment_filter_start_date_${buildingId}`);
+    return saved || moment().startOf('month').format("YYYY-MM-DD");
+  });
+  const [filterEndDate, setFilterEndDate] = useState(() => {
+    const saved = localStorage.getItem(`invoice_payment_filter_end_date_${buildingId}`);
+    return saved || moment().endOf('month').format("YYYY-MM-DD");
+  });
+  const [filterPeopleId, setFilterPeopleId] = useState(() => {
+    const saved = localStorage.getItem(`invoice_payment_filter_people_id_${buildingId}`);
+    return saved || "";
+  });
+  const [filterStatus, setFilterStatus] = useState(() => {
+    const saved = localStorage.getItem(`invoice_payment_filter_status_${buildingId}`);
+    return saved || "1"; // Default to active
+  });
 
   const fetchInvoices = async () => {
     try {
@@ -67,11 +87,20 @@ const InvoicePayments = () => {
         url = `buildings/${buildingId}/people`;
       }
       const { data } = await axiosInstance.get(url);
+      // Store all people for mapping people_id to names in the table
       setPeople(data || []);
     } catch (error) {
       console.log("Error fetching people", error);
     }
   };
+  
+  // Get customers only for the dropdown filter
+  const customers = useMemo(() => {
+    return (people || []).filter(person => 
+      person.people_type?.title?.toLowerCase() === "customer" || 
+      person.people_type?.Title?.toLowerCase() === "customer"
+    );
+  }, [people]);
 
   const fetchAccounts = async () => {
     try {
@@ -86,7 +115,7 @@ const InvoicePayments = () => {
     }
   };
 
-  const fetchPayments = async () => {
+  const fetchPayments = useCallback(async () => {
     try {
       setLoading(true);
       let url = "invoice-payments";
@@ -95,23 +124,66 @@ const InvoicePayments = () => {
       } else {
         url = `invoice-payments?building_id=${buildingId || ""}`;
       }
-      const { data } = await axiosInstance.get(url);
+      
+      // Add filter parameters
+      const params = {};
+      if (filterStartDate) {
+        params.start_date = filterStartDate;
+      }
+      if (filterEndDate) {
+        params.end_date = filterEndDate;
+      }
+      if (filterPeopleId) {
+        params.people_id = filterPeopleId;
+      }
+      if (filterStatus) {
+        params.status = filterStatus;
+      }
+      
+      const { data } = await axiosInstance.get(url, { params });
       setPayments(data || []);
     } catch (error) {
       console.log("Error fetching invoice payments", error);
       toast.error("Failed to fetch invoice payments");
+      setPayments([]);
     } finally {
       setLoading(false);
     }
-  };
+  }, [buildingId, filterStartDate, filterEndDate, filterPeopleId, filterStatus]);
+
+  // Save filters to localStorage whenever they change
+  useEffect(() => {
+    if (filterStartDate) {
+      localStorage.setItem(`invoice_payment_filter_start_date_${buildingId}`, filterStartDate);
+    }
+  }, [filterStartDate, buildingId]);
+
+  useEffect(() => {
+    if (filterEndDate) {
+      localStorage.setItem(`invoice_payment_filter_end_date_${buildingId}`, filterEndDate);
+    }
+  }, [filterEndDate, buildingId]);
+
+  useEffect(() => {
+    localStorage.setItem(`invoice_payment_filter_people_id_${buildingId}`, filterPeopleId);
+  }, [filterPeopleId, buildingId]);
+
+  useEffect(() => {
+    if (filterStatus) {
+      localStorage.setItem(`invoice_payment_filter_status_${buildingId}`, filterStatus);
+    }
+  }, [filterStatus, buildingId]);
 
   useEffect(() => {
     fetchInvoices();
     fetchAccounts();
     fetchUnits();
     fetchPeople();
-    fetchPayments();
   }, [buildingId]);
+
+  useEffect(() => {
+    fetchPayments();
+  }, [fetchPayments]);
 
   const handleViewClick = useCallback(async (paymentId) => {
     try {
@@ -256,19 +328,76 @@ const InvoicePayments = () => {
       <div className="page-content">
         <Container fluid>
           <Breadcrumbs title="Invoice Payments" breadcrumbItem="Invoice Payments" />
+          <Row className="mb-3">
+            <Col>
+              <Button
+                color="success"
+                onClick={() => navigate(`/building/${buildingId}/invoice-payments/create`)}
+              >
+                <i className="bx bx-plus-circle me-1"></i> Record Payment
+              </Button>
+            </Col>
+          </Row>
+          
+          {/* Filters */}
+          <Row className="mb-3">
+            <Col lg={12}>
+              <Card>
+                <CardBody>
+                  <Row>
+                    <Col md={3}>
+                      <Label>Start Date</Label>
+                      <Input
+                        type="date"
+                        value={filterStartDate}
+                        onChange={(e) => setFilterStartDate(e.target.value)}
+                      />
+                    </Col>
+                    <Col md={3}>
+                      <Label>End Date</Label>
+                      <Input
+                        type="date"
+                        value={filterEndDate}
+                        onChange={(e) => setFilterEndDate(e.target.value)}
+                      />
+                    </Col>
+                    <Col md={3}>
+                      <Label>Customer</Label>
+                      <Input
+                        type="select"
+                        value={filterPeopleId}
+                        onChange={(e) => setFilterPeopleId(e.target.value)}
+                      >
+                        <option value="">All Customers</option>
+                        {customers.map((person) => (
+                          <option key={person.id} value={person.id}>
+                            {person.name}
+                          </option>
+                        ))}
+                      </Input>
+                    </Col>
+                    <Col md={3}>
+                      <Label>Status</Label>
+                      <Input
+                        type="select"
+                        value={filterStatus}
+                        onChange={(e) => setFilterStatus(e.target.value)}
+                      >
+                        <option value="">All</option>
+                        <option value="1">Active</option>
+                        <option value="0">Inactive</option>
+                      </Input>
+                    </Col>
+                  </Row>
+                </CardBody>
+              </Card>
+            </Col>
+          </Row>
+          
           <Row>
             <Col lg="12">
               <Card>
                 <CardBody>
-                  <div className="d-flex justify-content-between align-items-center mb-3">
-                    <h4 className="card-title mb-0">Invoice Payments</h4>
-                    <Button
-                      color="success"
-                      onClick={() => navigate(`/building/${buildingId}/invoice-payments/create`)}
-                    >
-                      <i className="bx bx-plus-circle me-1"></i> Record Payment
-                    </Button>
-                  </div>
                   {isLoading ? (
                     <Spinners setLoading={setLoading} />
                   ) : (
@@ -364,6 +493,7 @@ const InvoicePayments = () => {
                         <tr>
                           <th>Account</th>
                           <th>People</th>
+                          <th>Unit</th>
                           <th className="text-end">Debit</th>
                           <th className="text-end">Credit</th>
                           <th>Status</th>
@@ -371,31 +501,35 @@ const InvoicePayments = () => {
                       </thead>
                       <tbody>
                         {viewingPayment.splits && viewingPayment.splits.length > 0 ? (
-                          viewingPayment.splits.map((split, index) => (
-                            <tr key={index}>
-                              <td>{getAccountName(split.account_id)}</td>
-                              <td>{getPeopleName(split.people_id)}</td>
-                              <td className="text-end">
-                                {split.debit ? parseFloat(split.debit).toFixed(2) : "-"}
-                              </td>
-                              <td className="text-end">
-                                {split.credit ? parseFloat(split.credit).toFixed(2) : "-"}
-                              </td>
-                              <td>
-                                <span className={`badge ${(split.status === "1" || split.status === 1) ? "bg-success" : "bg-secondary"}`}>
-                                  {(split.status === "1" || split.status === 1) ? "Active" : "Inactive"}
-                                </span>
-                              </td>
-                            </tr>
-                          ))
+                          viewingPayment.splits.map((split, index) => {
+                            const unit = split.unit_id ? units.find((u) => u.id === split.unit_id) : null;
+                            return (
+                              <tr key={index}>
+                                <td>{getAccountName(split.account_id)}</td>
+                                <td>{getPeopleName(split.people_id)}</td>
+                                <td>{unit ? unit.name : split.unit_id ? `ID: ${split.unit_id}` : "N/A"}</td>
+                                <td className="text-end">
+                                  {split.debit ? parseFloat(split.debit).toFixed(2) : "-"}
+                                </td>
+                                <td className="text-end">
+                                  {split.credit ? parseFloat(split.credit).toFixed(2) : "-"}
+                                </td>
+                                <td>
+                                  <span className={`badge ${(split.status === "1" || split.status === 1) ? "bg-success" : "bg-secondary"}`}>
+                                    {(split.status === "1" || split.status === 1) ? "Active" : "Inactive"}
+                                  </span>
+                                </td>
+                              </tr>
+                            );
+                          })
                         ) : (
                           <tr>
-                            <td colSpan="5" className="text-center">No splits found</td>
+                            <td colSpan="6" className="text-center">No splits found</td>
                           </tr>
                         )}
                         {viewingPayment.splits && viewingPayment.splits.length > 0 && (
                           <tr style={{ backgroundColor: "#f8f9fa", fontWeight: "bold" }}>
-                            <td colSpan="2" className="text-end">TOTAL</td>
+                            <td colSpan="3" className="text-end">TOTAL</td>
                             <td className="text-end">
                               {viewingPayment.splits.reduce((sum, split) => sum + (parseFloat(split.debit || 0)), 0).toFixed(2)}
                             </td>

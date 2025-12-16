@@ -81,8 +81,9 @@ const EditSalesReceipt = () => {
           building_id: parseInt(values.building_id),
           items: receiptItems.map((item) => ({
             item_id: parseInt(item.item_id),
-            qty: item.qty,
+            qty: item.qty !== null && item.qty !== undefined ? item.qty : null, // Send qty as-is without rounding
             rate: item.rate ? item.rate.toString() : null,
+            total: item.total !== null && item.total !== undefined ? item.total : null, // Send manually edited total
             previous_value: item.previous_value !== null && item.previous_value !== undefined ? item.previous_value : null,
             current_value: item.current_value !== null && item.current_value !== undefined ? item.current_value : null,
           })),
@@ -325,6 +326,12 @@ const EditSalesReceipt = () => {
       } else {
         newItems[index].total = 0;
       }
+    }
+    
+    // If total is manually edited, don't recalculate from qty/rate
+    if (field === "total") {
+      // Total was manually edited, keep it as is
+      newItems[index].total = value;
     }
 
     setReceiptItems(newItems);
@@ -798,7 +805,32 @@ const EditSalesReceipt = () => {
                                         placeholder={isDiscountOrPayment ? "Enter amount (will be negative)" : ""}
                                       />
                                     </td>
-                                    <td>{item.total ? item.total.toFixed(2) : "0.00"}</td>
+                                    <td>
+                                      <Input
+                                        type="number"
+                                        step="0.01"
+                                        min="0"
+                                        value={item.total ? parseFloat(item.total).toFixed(2) : "0.00"}
+                                        onChange={(e) => {
+                                          const inputValue = e.target.value;
+                                          // Allow empty input during typing
+                                          if (inputValue === "" || inputValue === "-") {
+                                            return;
+                                          }
+                                          const newTotal = parseFloat(inputValue) || 0;
+                                          // Round to 2 decimal places
+                                          const roundedTotal = Math.round(newTotal * 100) / 100;
+                                          updateReceiptItem(index, "total", roundedTotal);
+                                        }}
+                                        onBlur={(e) => {
+                                          // Ensure 2 decimal places on blur
+                                          const value = parseFloat(e.target.value) || 0;
+                                          const roundedValue = Math.round(value * 100) / 100;
+                                          updateReceiptItem(index, "total", roundedValue);
+                                        }}
+                                        style={{ width: "100px" }}
+                                      />
+                                    </td>
                                     <td>
                                       <Button
                                         type="button"
