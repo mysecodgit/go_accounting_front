@@ -142,9 +142,27 @@ const EditSalesReceipt = () => {
         url = `buildings/${buildingId}/people`;
       }
       const { data } = await axiosInstance.get(url);
-      setPeople(data || []);
+      const customers = (data || []).filter((person) => {
+        const typeTitle = person.people_type?.title || person.type?.title || "";
+        return typeTitle.toLowerCase() === "customer";
+      });
+      setPeople(customers);
     } catch (error) {
       console.log("Error fetching people", error);
+    }
+  };
+
+  const fetchUnitsForPeople = async (peopleId) => {
+    if (!peopleId || !buildingId) {
+      setUnits([]);
+      return;
+    }
+    try {
+      const { data } = await axiosInstance.get(`buildings/${buildingId}/leases/units-by-people/${peopleId}`);
+      setUnits(data || []);
+    } catch (error) {
+      console.log("Error fetching units for people", error);
+      setUnits([]);
     }
   };
 
@@ -224,13 +242,21 @@ const EditSalesReceipt = () => {
 
   useEffect(() => {
     fetchItems();
-    fetchUnits();
     fetchPeople();
     fetchAccounts();
     if (receiptId) {
       fetchReceiptForEdit();
     }
   }, [buildingId, receiptId]);
+
+  // Fetch units when people_id changes
+  useEffect(() => {
+    if (validation.values.people_id) {
+      fetchUnitsForPeople(validation.values.people_id);
+    } else {
+      setUnits([]);
+    }
+  }, [validation.values.people_id]);
 
   const addReceiptItem = () => {
     setReceiptItems([
@@ -595,7 +621,10 @@ const EditSalesReceipt = () => {
                           <Input
                             name="people_id"
                             type="select"
-                            onChange={validation.handleChange}
+                            onChange={(e) => {
+                              validation.handleChange(e);
+                              validation.setFieldValue("unit_id", ""); // Clear unit when people changes
+                            }}
                             onBlur={validation.handleBlur}
                             value={validation.values.people_id || ""}
                             invalid={validation.touched.people_id && validation.errors.people_id ? true : false}
@@ -603,7 +632,7 @@ const EditSalesReceipt = () => {
                             <option value="">Select People</option>
                             {people.map((person) => (
                               <option key={person.id} value={person.id}>
-                                {person.name}
+                                {person.name}{person.unit_name ? ` - ${person.unit_name}` : ""}
                               </option>
                             ))}
                           </Input>

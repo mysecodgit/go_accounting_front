@@ -105,14 +105,22 @@ const TableContainer = ({
     state: {
       columnFilters,
       globalFilter,
+      ...(isPagination && {
+        pagination: {
+          pageIndex: 0,
+          pageSize: 10,
+        },
+      }),
     },
     onColumnFiltersChange: setColumnFilters,
     onGlobalFilterChange: setGlobalFilter,
     globalFilterFn: fuzzyFilter,
     getCoreRowModel: getCoreRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
     getSortedRowModel: getSortedRowModel(),
+    ...(isPagination && {
+      getPaginationRowModel: getPaginationRowModel(),
+    }),
   });
 
   const {
@@ -124,7 +132,7 @@ const TableContainer = ({
     setPageIndex,
     nextPage,
     previousPage,
-    // setPageSize,
+    setPageSize,
     getState
   } = table;
 
@@ -216,20 +224,8 @@ const TableContainer = ({
 
           <tbody>
             {getRowModel().rows.map(row => {
-              // Check if this is a total row or account header for styling
-              const isTotalRow = row.original?.is_total_row || false;
-              const isAccountHeader = row.original?.is_account_header || false;
-              const isAccountTotal = row.original?.is_account_total || false;
-              
-              let rowClassName = "";
-              if (isAccountHeader) {
-                rowClassName = "table-info"; // Light blue background for account headers
-              } else if (isTotalRow || isAccountTotal) {
-                rowClassName = "table-warning"; // Light yellow/orange background for total rows
-              }
-              
               return (
-                <tr key={row.id} className={rowClassName}>
+                <tr key={row.id}>
                   {row.getVisibleCells().map(cell => {
                     return (
                       <td key={cell.id}>

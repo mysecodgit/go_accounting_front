@@ -39,9 +39,9 @@ const CreateLease = () => {
       unit_id: "",
       start_date: moment().format("YYYY-MM-DD"),
       end_date: "",
-      rent_amount: 0,
+      rent_amount: 300,
       deposit_amount: 0,
-      service_amount: 0,
+      service_amount: 50,
       lease_terms: "",
       status: "1",
     },
@@ -53,7 +53,7 @@ const CreateLease = () => {
       rent_amount: Yup.number().min(0, "Rent amount cannot be negative").required("Rent amount is required"),
       deposit_amount: Yup.number().min(0, "Deposit amount cannot be negative").required("Deposit amount is required"),
       service_amount: Yup.number().min(0, "Service amount cannot be negative").required("Service amount is required"),
-      lease_terms: Yup.string().required("Lease terms are required"),
+      lease_terms: Yup.string().nullable(),
       status: Yup.string().required("Status is required"),
     }),
     onSubmit: async (values) => {
@@ -302,7 +302,7 @@ const CreateLease = () => {
 
                       <Col md={12}>
                         <div className="mb-3">
-                          <Label>Lease Terms *</Label>
+                          <Label>Lease Terms</Label>
                           <Input
                             name="lease_terms"
                             type="textarea"

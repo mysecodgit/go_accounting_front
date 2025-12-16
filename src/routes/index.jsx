@@ -49,6 +49,9 @@ import CreateJournal from "../pages/Journals/CreateJournal";
 import Leases from "../pages/Leases";
 import CreateLease from "../pages/Leases/CreateLease";
 import EditLease from "../pages/Leases/EditLease";
+import Readings from "../pages/Readings";
+import CreateReading from "../pages/Readings/CreateReading";
+import EditReading from "../pages/Readings/EditReading";
 
 const authProtectedRoutes = [
   // Buildings list page (first page after login)
@@ -84,6 +87,9 @@ const authProtectedRoutes = [
   { path: "/building/:id/leases", component: <Leases /> },
   { path: "/building/:id/leases/create", component: <CreateLease /> },
   { path: "/building/:id/leases/:leaseId/edit", component: <EditLease /> },
+  { path: "/building/:id/readings", component: <Readings /> },
+  { path: "/building/:id/readings/create", component: <CreateReading /> },
+  { path: "/building/:id/readings/:readingId/edit", component: <EditReading /> },
   { path: "/building/:id/reports/balance-sheet", component: <BalanceSheet /> },
   { path: "/building/:id/reports/trial-balance", component: <TrialBalance /> },
   { path: "/building/:id/reports/transaction-details-by-account", component: <TransactionDetailsByAccount /> },

@@ -41,6 +41,7 @@ const CreateInvoice = () => {
   const [showSplitsModal, setShowSplitsModal] = useState(false);
   const [nextInvoiceNo, setNextInvoiceNo] = useState("1");
   const [userId, setUserId] = useState(1); // TODO: Get from auth context
+  const [readings, setReadings] = useState([]);
 
   const validation = useFormik({
     enableReinitialize: true,
@@ -144,7 +145,6 @@ const CreateInvoice = () => {
         url = `buildings/${buildingId}/people`;
       }
       const { data } = await axiosInstance.get(url);
-      // Filter to only customers
       const customers = (data || []).filter((person) => {
         const typeTitle = person.people_type?.title || person.type?.title || "";
         return typeTitle.toLowerCase() === "customer";
@@ -152,6 +152,20 @@ const CreateInvoice = () => {
       setPeople(customers);
     } catch (error) {
       console.log("Error fetching people", error);
+    }
+  };
+
+  const fetchUnitsForPeople = async (peopleId) => {
+    if (!peopleId || !buildingId) {
+      setUnits([]);
+      return;
+    }
+    try {
+      const { data } = await axiosInstance.get(`buildings/${buildingId}/leases/units-by-people/${peopleId}`);
+      setUnits(data || []);
+    } catch (error) {
+      console.log("Error fetching units for people", error);
+      setUnits([]);
     }
   };
 
@@ -191,11 +205,42 @@ const CreateInvoice = () => {
 
   useEffect(() => {
     fetchItems();
-    fetchUnits();
     fetchPeople();
     fetchAccounts();
     fetchNextInvoiceNo();
   }, [buildingId]);
+
+  // Fetch units when people_id changes
+  useEffect(() => {
+    if (validation.values.people_id) {
+      fetchUnitsForPeople(validation.values.people_id);
+    } else {
+      setUnits([]);
+    }
+  }, [validation.values.people_id]);
+
+  // Fetch readings when unit_id changes
+  const fetchReadingsByUnit = async (unitId) => {
+    if (!unitId || !buildingId) {
+      setReadings([]);
+      return;
+    }
+    try {
+      const { data } = await axiosInstance.get(`buildings/${buildingId}/readings/unit/${unitId}`);
+      setReadings(data || []);
+    } catch (error) {
+      console.log("Error fetching readings for unit", error);
+      setReadings([]);
+    }
+  };
+
+  useEffect(() => {
+    if (validation.values.unit_id) {
+      fetchReadingsByUnit(validation.values.unit_id);
+    } else {
+      setReadings([]);
+    }
+  }, [validation.values.unit_id]);
 
   const addInvoiceItem = () => {
     setInvoiceItems([
@@ -369,8 +414,8 @@ const CreateInvoice = () => {
       splits.push({
         account_id: discountIncomeAccount.id,
         account_name: discountIncomeAccount.account_name || "Discount Income",
-        people_id: null, // Only AR account gets people_id
-        people_name: null,
+        people_id: selectedPeopleId, // Link people_id to all splits
+        people_name: peopleName,
         unit_id: unitId, // Include unit_id from form
         debit: discountTotal,
         credit: null,
@@ -382,8 +427,8 @@ const CreateInvoice = () => {
       splits.push({
         account_id: paymentAssetAccount.id,
         account_name: paymentAssetAccount.account_name || "Payment Asset",
-        people_id: null, // Only AR account gets people_id
-        people_name: null,
+        people_id: selectedPeopleId, // Link people_id to all splits
+        people_name: peopleName,
         unit_id: unitId, // Include unit_id from form
         debit: paymentTotal,
         credit: null,
@@ -397,8 +442,8 @@ const CreateInvoice = () => {
         splits.push({
           account_id: parseInt(accountId),
           account_name: account.account_name,
-          people_id: null, // Only AR account gets people_id
-          people_name: null,
+          people_id: selectedPeopleId, // Link people_id to all splits
+          people_name: peopleName,
           unit_id: unitId, // Include unit_id from form
           debit: null,
           credit: serviceIncomeByAccount[accountId],
@@ -413,8 +458,8 @@ const CreateInvoice = () => {
         splits.push({
           account_id: parseInt(accountId),
           account_name: account.account_name,
-          people_id: null, // Only AR account gets people_id
-          people_name: null,
+          people_id: selectedPeopleId, // Link people_id to all splits
+          people_name: peopleName,
           unit_id: unitId, // Include unit_id from form
           debit: serviceDebitByAccount[accountId],
           credit: null,
@@ -484,7 +529,7 @@ const CreateInvoice = () => {
         <Container fluid>
           <Breadcrumbs title="Create Invoice" breadcrumbItem="Create Invoice" />
           <Row>
-            <Col lg="12">
+            <Col lg={8}>
               <Card>
                 <CardBody>
                   <Form
@@ -572,7 +617,10 @@ const CreateInvoice = () => {
                           <Input
                             name="people_id"
                             type="select"
-                            onChange={validation.handleChange}
+                            onChange={(e) => {
+                              validation.handleChange(e);
+                              validation.setFieldValue("unit_id", ""); // Clear unit when people changes
+                            }}
                             onBlur={validation.handleBlur}
                             value={validation.values.people_id || ""}
                             invalid={validation.touched.people_id && validation.errors.people_id ? true : false}
@@ -580,7 +628,7 @@ const CreateInvoice = () => {
                             <option value="">Select People</option>
                             {people.map((person) => (
                               <option key={person.id} value={person.id}>
-                                {person.name}
+                                {person.name}{person.unit_name ? ` - ${person.unit_name}` : ""}
                               </option>
                             ))}
                           </Input>
@@ -795,6 +843,60 @@ const CreateInvoice = () => {
                       </Col>
                     </Row>
                   </Form>
+                </CardBody>
+              </Card>
+            </Col>
+            <Col lg={4}>
+              <Card>
+                <CardBody>
+                  <h5 className="card-title mb-3">Readings Summary</h5>
+                  {validation.values.unit_id ? (
+                    readings.length > 0 ? (
+                      <div className="table-responsive">
+                        <Table className="table-nowrap mb-0" striped>
+                          <thead>
+                            <tr>
+                              <th>Item</th>
+                              <th>Date</th>
+                              <th>Prev</th>
+                              <th>Current</th>
+                              <th>Consumption</th>
+                              <th>Unit Price</th>
+                              <th>Total</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {readings.map((readingItem) => {
+                              const prev = readingItem.reading.previous_value || 0;
+                              const current = readingItem.reading.current_value || 0;
+                              const consumption = current - prev;
+                              const unitPrice = readingItem.reading.unit_price || 0;
+                              const total = readingItem.reading.total_amount || 0;
+                              return (
+                                <tr key={readingItem.reading.id}>
+                                  <td>{readingItem.item?.name || "N/A"}</td>
+                                  <td>
+                                    {readingItem.reading.reading_date
+                                      ? moment(readingItem.reading.reading_date).format("MM/DD/YY")
+                                      : "N/A"}
+                                  </td>
+                                  <td>{prev.toFixed(3)}</td>
+                                  <td>{current.toFixed(3)}</td>
+                                  <td>{consumption.toFixed(3)}</td>
+                                  <td>${unitPrice.toFixed(2)}</td>
+                                  <td>${total.toFixed(2)}</td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </Table>
+                      </div>
+                    ) : (
+                      <p className="text-muted">No readings found for this unit</p>
+                    )
+                  ) : (
+                    <p className="text-muted">Please select a unit to view readings</p>
+                  )}
                 </CardBody>
               </Card>
             </Col>

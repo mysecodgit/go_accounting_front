@@ -128,7 +128,8 @@ const Leases = () => {
         enableColumnFilter: false,
         enableSorting: true,
         cell: (cell) => {
-          return <>{cell.row.original.start_date ? moment(cell.row.original.start_date).format("YYYY-MM-DD") : "N/A"}</>;
+          const lease = cell.row.original.lease || cell.row.original;
+          return <>{lease.start_date ? moment(lease.start_date).format("YYYY-MM-DD") : "N/A"}</>;
         },
       },
       {
@@ -137,7 +138,8 @@ const Leases = () => {
         enableColumnFilter: false,
         enableSorting: true,
         cell: (cell) => {
-          return <>{cell.row.original.end_date ? moment(cell.row.original.end_date).format("YYYY-MM-DD") : "N/A"}</>;
+          const lease = cell.row.original.lease || cell.row.original;
+          return <>{lease.end_date ? moment(lease.end_date).format("YYYY-MM-DD") : "N/A"}</>;
         },
       },
       {
@@ -146,7 +148,9 @@ const Leases = () => {
         enableColumnFilter: false,
         enableSorting: true,
         cell: (cell) => {
-          return <>{getPeopleName(cell.row.original.people_id)}</>;
+          const lease = cell.row.original.lease || cell.row.original;
+          const peopleName = cell.row.original.people?.name;
+          return <>{peopleName || getPeopleName(lease.people_id)}</>;
         },
       },
       {
@@ -155,7 +159,8 @@ const Leases = () => {
         enableColumnFilter: false,
         enableSorting: true,
         cell: (cell) => {
-          return <>{getUnitName(cell.row.original.unit_id)}</>;
+          const lease = cell.row.original.lease || cell.row.original;
+          return <>{getUnitName(lease.unit_id)}</>;
         },
       },
       {
@@ -164,7 +169,8 @@ const Leases = () => {
         enableColumnFilter: false,
         enableSorting: true,
         cell: (cell) => {
-          return <>{parseFloat(cell.row.original.rent_amount || 0).toFixed(2)}</>;
+          const lease = cell.row.original.lease || cell.row.original;
+          return <>{parseFloat(lease.rent_amount || 0).toFixed(2)}</>;
         },
       },
       {
@@ -173,7 +179,8 @@ const Leases = () => {
         enableColumnFilter: false,
         enableSorting: true,
         cell: (cell) => {
-          return <>{parseFloat(cell.row.original.deposit_amount || 0).toFixed(2)}</>;
+          const lease = cell.row.original.lease || cell.row.original;
+          return <>{parseFloat(lease.deposit_amount || 0).toFixed(2)}</>;
         },
       },
       {
@@ -182,7 +189,8 @@ const Leases = () => {
         enableColumnFilter: false,
         enableSorting: true,
         cell: (cell) => {
-          return <>{parseFloat(cell.row.original.service_amount || 0).toFixed(2)}</>;
+          const lease = cell.row.original.lease || cell.row.original;
+          return <>{parseFloat(lease.service_amount || 0).toFixed(2)}</>;
         },
       },
       {
@@ -191,7 +199,8 @@ const Leases = () => {
         enableColumnFilter: false,
         enableSorting: true,
         cell: (cell) => {
-          const status = cell.row.original.status;
+          const lease = cell.row.original.lease || cell.row.original;
+          const status = lease.status;
           return (
             <Badge color={status === "1" ? "success" : "secondary"}>
               {status === "1" ? "Active" : "Inactive"}
@@ -205,20 +214,22 @@ const Leases = () => {
         enableColumnFilter: false,
         enableSorting: false,
         cell: (cell) => {
+          const lease = cell.row.original.lease || cell.row.original;
+          const leaseId = lease.id;
           return (
             <>
               <Button
                 color="info"
                 size="sm"
                 className="me-2"
-                onClick={() => fetchLeaseDetails(cell.row.original.id)}
+                onClick={() => fetchLeaseDetails(leaseId)}
               >
                 View
               </Button>
               <Button
                 color="primary"
                 size="sm"
-                onClick={() => navigate(`/building/${buildingId}/leases/${cell.row.original.id}/edit`)}
+                onClick={() => navigate(`/building/${buildingId}/leases/${leaseId}/edit`)}
               >
                 Edit
               </Button>

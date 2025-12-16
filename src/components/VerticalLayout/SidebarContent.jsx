@@ -286,6 +286,12 @@ const SidebarContent = (props) => {
                         <span>{props.t("Leases")}</span>
                       </Link>
                     </li>
+                    <li>
+                      <Link to={buildRoute("/readings")}>
+                        <i className="bx bx-clipboard"></i>
+                        <span>{props.t("Readings")}</span>
+                      </Link>
+                    </li>
                   </ul>
                 </li>
 
