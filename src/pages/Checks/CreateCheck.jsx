@@ -31,6 +31,7 @@ const CreateCheck = () => {
   const navigate = useNavigate();
 
   const [isLoading, setLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false); // Prevent double submissions
   const [accounts, setAccounts] = useState([]);
   const [paymentAccounts, setPaymentAccounts] = useState([]);
   const [units, setUnits] = useState([]);
@@ -57,12 +58,18 @@ const CreateCheck = () => {
       building_id: Yup.number().required("Building ID is required"),
     }),
     onSubmit: async (values) => {
+      // Prevent double submission
+      if (isSubmitting) {
+        return;
+      }
+      
+      if (expenseLines.length === 0) {
+        toast.error("Please add at least one expense line");
+        return;
+      }
+      
+      setIsSubmitting(true);
       try {
-        if (expenseLines.length === 0) {
-          toast.error("Please add at least one expense line");
-          return;
-        }
-
         const payload = {
           check_date: values.check_date,
           reference_number: values.reference_number || null,
@@ -101,6 +108,8 @@ const CreateCheck = () => {
       } catch (err) {
         const errorMsg = err.response?.data?.error || err.response?.data?.errors || "Something went wrong";
         toast.error(typeof errorMsg === "object" ? JSON.stringify(errorMsg) : errorMsg);
+      } finally {
+        setIsSubmitting(false);
       }
     },
   });
@@ -525,8 +534,8 @@ const CreateCheck = () => {
                           <Button type="button" color="secondary" onClick={() => navigate(`/building/${buildingId}/checks`)}>
                             Cancel
                           </Button>
-                          <Button type="submit" color="primary">
-                            <i className="bx bx-save me-1"></i> {checkId ? "Update Check" : "Create Check"}
+                          <Button type="submit" color="primary" disabled={isSubmitting}>
+                            <i className="bx bx-save me-1"></i> {isSubmitting ? (checkId ? "Updating..." : "Creating...") : (checkId ? "Update Check" : "Create Check")}
                           </Button>
                         </div>
                       </Col>

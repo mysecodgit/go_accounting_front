@@ -31,6 +31,7 @@ const EditInvoice = () => {
   const navigate = useNavigate();
 
   const [isLoading, setLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false); // Prevent double submissions
   const [items, setItems] = useState([]);
   const [units, setUnits] = useState([]);
   const [people, setPeople] = useState([]);
@@ -69,6 +70,12 @@ const EditInvoice = () => {
       building_id: Yup.number().required("Building ID is required"),
     }),
     onSubmit: async (values) => {
+      // Prevent double submission
+      if (isSubmitting) {
+        return;
+      }
+      
+      setIsSubmitting(true);
       try {
         const payload = {
           id: parseInt(invoiceId),
@@ -109,6 +116,8 @@ const EditInvoice = () => {
       } catch (err) {
         const errorMsg = err.response?.data?.error || err.response?.data?.errors || "Something went wrong";
         toast.error(typeof errorMsg === "object" ? JSON.stringify(errorMsg) : errorMsg);
+      } finally {
+        setIsSubmitting(false);
       }
     },
   });
@@ -889,8 +898,8 @@ const EditInvoice = () => {
                           >
                             Preview Splits
                           </Button>
-                          <Button type="submit" color="success">
-                            Update Invoice
+                          <Button type="submit" color="success" disabled={isSubmitting}>
+                            {isSubmitting ? "Updating..." : "Update Invoice"}
                           </Button>
                           <Button type="button" color="secondary" className="ms-2" onClick={() => navigate(`/building/${buildingId}/invoices`)}>
                             Cancel

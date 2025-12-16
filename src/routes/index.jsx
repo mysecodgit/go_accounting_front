@@ -36,6 +36,8 @@ import TrialBalance from "../pages/Reports/TrialBalance";
 import TransactionDetailsByAccount from "../pages/Reports/TransactionDetailsByAccount";
 import CustomerBalanceSummary from "../pages/Reports/CustomerBalanceSummary";
 import CustomerBalanceDetails from "../pages/Reports/CustomerBalanceDetails";
+import ProfitAndLossStandard from "../pages/Reports/ProfitAndLossStandard";
+import ProfitAndLossByUnit from "../pages/Reports/ProfitAndLossByUnit";
 import CreateInvoice from "../pages/Invoices/CreateInvoice";
 import EditInvoice from "../pages/Invoices/EditInvoice";
 import CreateSalesReceipt from "../pages/SalesReceipts/CreateSalesReceipt";
@@ -95,6 +97,8 @@ const authProtectedRoutes = [
   { path: "/building/:id/reports/transaction-details-by-account", component: <TransactionDetailsByAccount /> },
   { path: "/building/:id/reports/customer-balance-summary", component: <CustomerBalanceSummary /> },
   { path: "/building/:id/reports/customer-balance-details", component: <CustomerBalanceDetails /> },
+  { path: "/building/:id/reports/profit-and-loss-standard", component: <ProfitAndLossStandard /> },
+  { path: "/building/:id/reports/profit-and-loss-by-unit", component: <ProfitAndLossByUnit /> },
   { path: "/building/:id/buildings", component: <Buildings /> },
 
   //profile

@@ -31,6 +31,7 @@ const CreateInvoicePayment = () => {
   const navigate = useNavigate();
 
   const [isLoading, setLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false); // Prevent double submissions
   const [invoices, setInvoices] = useState([]);
   const [accounts, setAccounts] = useState([]);
   const [assetAccounts, setAssetAccounts] = useState([]);
@@ -68,6 +69,12 @@ const CreateInvoicePayment = () => {
       building_id: Yup.number().required("Building ID is required"),
     }),
     onSubmit: async (values) => {
+      // Prevent double submission
+      if (isSubmitting) {
+        return;
+      }
+      
+      setIsSubmitting(true);
       try {
         const payload = {
           reference: values.reference,
@@ -96,6 +103,8 @@ const CreateInvoicePayment = () => {
       } catch (err) {
         const errorMsg = err.response?.data?.error || err.response?.data?.errors || "Something went wrong";
         toast.error(typeof errorMsg === "object" ? JSON.stringify(errorMsg) : errorMsg);
+      } finally {
+        setIsSubmitting(false);
       }
     },
   });
@@ -388,8 +397,8 @@ const CreateInvoicePayment = () => {
                           >
                             Preview Splits
                           </Button>
-                          <Button type="submit" color="success" disabled={isLoading}>
-                            Record Payment
+                          <Button type="submit" color="success" disabled={isLoading || isSubmitting}>
+                            {isSubmitting ? "Recording..." : "Record Payment"}
                           </Button>
                         </div>
                       </Col>

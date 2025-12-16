@@ -332,6 +332,18 @@ const SidebarContent = (props) => {
                         <span>{props.t("Customer Balance Details")}</span>
                       </Link>
                     </li>
+                    <li>
+                      <Link to={buildRoute("/reports/profit-and-loss-standard")}>
+                        <i className="bx bx-line-chart"></i>
+                        <span>{props.t("Profit and Loss (Standard)")}</span>
+                      </Link>
+                    </li>
+                    <li>
+                      <Link to={buildRoute("/reports/profit-and-loss-by-unit")}>
+                        <i className="bx bx-bar-chart"></i>
+                        <span>{props.t("Profit and Loss (By Unit)")}</span>
+                      </Link>
+                    </li>
                   </ul>
                 </li>
 

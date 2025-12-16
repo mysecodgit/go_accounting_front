@@ -31,6 +31,7 @@ const CreateJournal = () => {
   const navigate = useNavigate();
 
   const [isLoading, setLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false); // Prevent double submissions
   const [accounts, setAccounts] = useState([]);
   const [units, setUnits] = useState([]);
   const [people, setPeople] = useState([]);
@@ -55,12 +56,18 @@ const CreateJournal = () => {
       building_id: Yup.number().required("Building ID is required"),
     }),
     onSubmit: async (values) => {
+      // Prevent double submission
+      if (isSubmitting) {
+        return;
+      }
+      
+      if (journalLines.length === 0) {
+        toast.error("Please add at least one journal line");
+        return;
+      }
+      
+      setIsSubmitting(true);
       try {
-        if (journalLines.length === 0) {
-          toast.error("Please add at least one journal line");
-          return;
-        }
-
         const payload = {
           reference: values.reference,
           journal_date: values.journal_date,
@@ -99,6 +106,8 @@ const CreateJournal = () => {
       } catch (err) {
         const errorMsg = err.response?.data?.error || err.response?.data?.errors || "Something went wrong";
         toast.error(typeof errorMsg === "object" ? JSON.stringify(errorMsg) : errorMsg);
+      } finally {
+        setIsSubmitting(false);
       }
     },
   });
@@ -524,8 +533,8 @@ const CreateJournal = () => {
                           <Button type="button" color="secondary" onClick={() => navigate(`/building/${buildingId}/journals`)}>
                             Cancel
                           </Button>
-                          <Button type="submit" color="primary">
-                            <i className="bx bx-save me-1"></i> {journalId ? "Update Journal" : "Create Journal"}
+                          <Button type="submit" color="primary" disabled={isSubmitting}>
+                            <i className="bx bx-save me-1"></i> {isSubmitting ? (journalId ? "Updating..." : "Creating...") : (journalId ? "Update Journal" : "Create Journal")}
                           </Button>
                         </div>
                       </Col>
