@@ -64,6 +64,7 @@ const Invoices = () => {
   const [showSplitsPreviewModal, setShowSplitsPreviewModal] = useState(false);
   const [userId] = useState(1); // TODO: Get from auth context
   const [showPayModal, setShowPayModal] = useState(false);
+  const [isPaymentSubmitting, setIsPaymentSubmitting] = useState(false); // Prevent duplicate payment recording
   const [selectedInvoiceForPayment, setSelectedInvoiceForPayment] = useState(null);
   const [previousPayments, setPreviousPayments] = useState([]);
   const [paymentReference, setPaymentReference] = useState("");
@@ -468,6 +469,9 @@ const Invoices = () => {
   }, [buildingId]);
 
   const previewPaymentSplits = async () => {
+    if (isPaymentSubmitting) {
+      return;
+    }
     if (!selectedInvoiceForPayment || !paymentAccountId || paymentAmount <= 0) {
       toast.error("Please fill all required fields");
       return;
@@ -500,12 +504,16 @@ const Invoices = () => {
   };
 
   const handleCreatePayment = async () => {
+    if (isPaymentSubmitting) {
+      return;
+    }
     if (!selectedInvoiceForPayment || !paymentAccountId || paymentAmount <= 0) {
       toast.error("Please fill all required fields");
       return;
     }
 
     try {
+      setIsPaymentSubmitting(true);
       setLoading(true);
       let url = `invoice-payments`;
       if (buildingId) {
@@ -548,6 +556,7 @@ const Invoices = () => {
       toast.error(errorMsg);
     } finally {
       setLoading(false);
+      setIsPaymentSubmitting(false);
     }
   };
 
@@ -973,7 +982,7 @@ const Invoices = () => {
                                 <td>{item.item_name}</td>
                                 <td>{item.previous_value !== null && item.previous_value !== undefined ? parseFloat(item.previous_value).toFixed(3) : "N/A"}</td>
                                 <td>{item.current_value !== null && item.current_value !== undefined ? parseFloat(item.current_value).toFixed(3) : "N/A"}</td>
-                                <td>{item.qty !== null && item.qty !== undefined ? parseFloat(item.qty).toFixed(2) : "N/A"}</td>
+                                <td>{item.qty !== null && item.qty !== undefined ? parseFloat(item.qty).toFixed(3) : "N/A"}</td>
                                 <td>{item.rate || "N/A"}</td>
                                 <td>{parseFloat(item.total || 0).toFixed(2)}</td>
                               </tr>
@@ -1496,16 +1505,16 @@ const Invoices = () => {
                             color="info"
                             className="me-2"
                             onClick={previewPaymentSplits}
-                            disabled={!paymentReference || !paymentAccountId || paymentAmount <= 0}
+                            disabled={isPaymentSubmitting || isLoading || !paymentReference || !paymentAccountId || paymentAmount <= 0}
                           >
                             <i className="bx bx-show"></i> Preview Splits
                           </Button>
                           <Button
                             color="success"
                             onClick={handleCreatePayment}
-                            disabled={!paymentReference || !paymentAccountId || paymentAmount <= 0}
+                            disabled={isPaymentSubmitting || isLoading || !paymentReference || !paymentAccountId || paymentAmount <= 0}
                           >
-                            <i className="bx bx-check"></i> Record Payment
+                            <i className="bx bx-check"></i> {isPaymentSubmitting ? "Recording..." : "Record Payment"}
                           </Button>
                         </Col>
                       </Row>
@@ -1571,8 +1580,9 @@ const Invoices = () => {
                         setShowPaymentSplitsModal(false);
                         handleCreatePayment();
                       }}
+                      disabled={isPaymentSubmitting || loading}
                     >
-                      <i className="bx bx-check"></i> Confirm and Record Payment
+                      <i className="bx bx-check"></i> {isPaymentSubmitting ? "Recording..." : "Confirm and Record Payment"}
                     </Button>
                   </div>
                 </>

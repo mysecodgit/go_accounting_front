@@ -19,6 +19,7 @@ import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import axiosInstance from "../../services/axiosService";
 import moment from "moment/moment";
+import { formatNumber } from "../../utils/numberFormat";
 
 const ProfitAndLossByUnit = () => {
   document.title = "Profit and Loss (By Unit)";
@@ -156,12 +157,12 @@ const ProfitAndLossByUnit = () => {
                                 {report.units.map((unit) => (
                                   <td key={`${account.account_id}-${unit.unit_id}`} className="text-end">
                                     {account.balances[unit.unit_id] 
-                                      ? parseFloat(account.balances[unit.unit_id]).toFixed(2)
-                                      : "0.00"}
+                                      ? formatNumber(account.balances[unit.unit_id])
+                                      : formatNumber(0)}
                                   </td>
                                 ))}
                                 <td className="text-end">
-                                  <strong>{parseFloat(account.total).toFixed(2)}</strong>
+                                  <strong>{formatNumber(account.total)}</strong>
                                 </td>
                               </tr>
                             ))}
@@ -174,13 +175,13 @@ const ProfitAndLossByUnit = () => {
                               {report.units.map((unit) => (
                                 <td key={`total-income-${unit.unit_id}`} className="text-end">
                                   <strong style={{ textDecoration: "underline" }}>
-                                    {parseFloat(report.total_income[unit.unit_id] || 0).toFixed(2)}
+                                    {formatNumber(report.total_income[unit.unit_id] || 0)}
                                   </strong>
                                 </td>
                               ))}
                               <td className="text-end">
                                 <strong style={{ textDecoration: "underline" }}>
-                                  {parseFloat(report.grand_total_income).toFixed(2)}
+                                  {formatNumber(report.grand_total_income)}
                                 </strong>
                               </td>
                             </tr>
@@ -202,12 +203,12 @@ const ProfitAndLossByUnit = () => {
                                   {report.units.map((unit) => (
                                     <td key={`${account.account_id}-${unit.unit_id}`} className="text-end">
                                       {account.balances[unit.unit_id] 
-                                        ? parseFloat(account.balances[unit.unit_id]).toFixed(2)
-                                        : "0.00"}
+                                        ? formatNumber(account.balances[unit.unit_id])
+                                        : formatNumber(0)}
                                     </td>
                                   ))}
                                   <td className="text-end">
-                                    <strong>{parseFloat(account.total).toFixed(2)}</strong>
+                                    <strong>{formatNumber(account.total)}</strong>
                                   </td>
                                 </tr>
                               ))
@@ -227,13 +228,13 @@ const ProfitAndLossByUnit = () => {
                               {report.units.map((unit) => (
                                 <td key={`total-expenses-${unit.unit_id}`} className="text-end">
                                   <strong style={{ textDecoration: "underline" }}>
-                                    {parseFloat(report.total_expenses[unit.unit_id] || 0).toFixed(2)}
+                                    {formatNumber(report.total_expenses[unit.unit_id] || 0)}
                                   </strong>
                                 </td>
                               ))}
                               <td className="text-end">
                                 <strong style={{ textDecoration: "underline" }}>
-                                  {parseFloat(report.grand_total_expenses).toFixed(2)}
+                                  {formatNumber(report.grand_total_expenses)}
                                 </strong>
                               </td>
                             </tr>
@@ -246,13 +247,13 @@ const ProfitAndLossByUnit = () => {
                               {report.units.map((unit) => (
                                 <td key={`net-income-${unit.unit_id}`} className="text-end">
                                   <strong style={{ textDecoration: "underline" }}>
-                                    {parseFloat(report.net_profit_loss[unit.unit_id] || 0).toFixed(2)}
+                                    {formatNumber(report.net_profit_loss[unit.unit_id] || 0)}
                                   </strong>
                                 </td>
                               ))}
                               <td className="text-end">
                                 <strong style={{ textDecoration: "underline" }}>
-                                  {parseFloat(report.grand_total_net_profit_loss).toFixed(2)}
+                                  {formatNumber(report.grand_total_net_profit_loss)}
                                 </strong>
                               </td>
                             </tr>

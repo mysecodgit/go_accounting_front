@@ -19,6 +19,7 @@ import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import axiosInstance from "../../services/axiosService";
 import moment from "moment/moment";
+import { formatNumber } from "../../utils/numberFormat";
 
 const BalanceSheet = () => {
   document.title = "Balance Sheet";
@@ -126,12 +127,12 @@ const BalanceSheet = () => {
                                   {balanceSheet.assets.accounts.map((account, index) => (
                                     <tr key={index}>
                                       <td>{account.account_name}</td>
-                                      <td className="text-end">{account.balance.toFixed(2)}</td>
+                                      <td className="text-end">{formatNumber(account.balance)}</td>
                                     </tr>
                                   ))}
                                   <tr className="fw-bold">
                                     <td>Total Assets</td>
-                                    <td className="text-end">{balanceSheet.total_assets.toFixed(2)}</td>
+                                    <td className="text-end">{formatNumber(balanceSheet.total_assets)}</td>
                                   </tr>
                                 </tbody>
                               </Table>
@@ -154,12 +155,12 @@ const BalanceSheet = () => {
                                   {balanceSheet.liabilities.accounts.map((account, index) => (
                                     <tr key={index}>
                                       <td>{account.account_name}</td>
-                                      <td className="text-end">{account.balance.toFixed(2)}</td>
+                                      <td className="text-end">{formatNumber(account.balance)}</td>
                                     </tr>
                                   ))}
                                   <tr className="fw-bold">
                                     <td>Total Liabilities</td>
-                                    <td className="text-end">{balanceSheet.liabilities.total.toFixed(2)}</td>
+                                    <td className="text-end">{formatNumber(balanceSheet.liabilities.total)}</td>
                                   </tr>
                                 </tbody>
                               </Table>
@@ -180,12 +181,12 @@ const BalanceSheet = () => {
                                   {balanceSheet.equity.accounts.map((account, index) => (
                                     <tr key={index} style={account.account_id === 0 ? { fontStyle: "italic" } : {}}>
                                       <td>{account.account_name}</td>
-                                      <td className="text-end">{account.balance.toFixed(2)}</td>
+                                      <td className="text-end">{formatNumber(account.balance)}</td>
                                     </tr>
                                   ))}
                                   <tr className="fw-bold">
                                     <td>Total Equity</td>
-                                    <td className="text-end">{balanceSheet.equity.total.toFixed(2)}</td>
+                                    <td className="text-end">{formatNumber(balanceSheet.equity.total)}</td>
                                   </tr>
                                 </tbody>
                               </Table>
@@ -200,10 +201,10 @@ const BalanceSheet = () => {
                             <CardBody>
                               <Row>
                                 <Col md={6}>
-                                  <h5>Total Assets: {balanceSheet.total_assets.toFixed(2)}</h5>
+                                  <h5>Total Assets: {formatNumber(balanceSheet.total_assets)}</h5>
                                 </Col>
                                 <Col md={6}>
-                                  <h5>Total Liabilities & Equity: {balanceSheet.total_liabilities_and_equity.toFixed(2)}</h5>
+                                  <h5>Total Liabilities & Equity: {formatNumber(balanceSheet.total_liabilities_and_equity)}</h5>
                                 </Col>
                               </Row>
                               <Row className="mt-2">

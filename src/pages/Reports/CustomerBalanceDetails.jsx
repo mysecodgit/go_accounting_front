@@ -19,6 +19,7 @@ import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import axiosInstance from "../../services/axiosService";
 import moment from "moment/moment";
+import { formatNumber, formatNumberOrDash } from "../../utils/numberFormat";
 
 const CustomerBalanceDetails = () => {
   document.title = "Customer Balance Details";
@@ -178,9 +179,9 @@ const CustomerBalanceDetails = () => {
                                   <td colSpan="5" className="text-end">
                                     TOTAL
                                   </td>
-                                  <td className="text-end">{parseFloat(customerDetail.total_debit || 0).toFixed(2)}</td>
-                                  <td className="text-end">{parseFloat(customerDetail.total_credit || 0).toFixed(2)}</td>
-                                  <td className="text-end">{parseFloat(customerDetail.total_balance || 0).toFixed(2)}</td>
+                                  <td className="text-end">{formatNumber(customerDetail.total_debit || 0)}</td>
+                                  <td className="text-end">{formatNumber(customerDetail.total_credit || 0)}</td>
+                                  <td className="text-end">{formatNumber(customerDetail.total_balance || 0)}</td>
                                 </tr>
                               );
                             } else if (customerDetail.is_header) {
@@ -210,9 +211,9 @@ const CustomerBalanceDetails = () => {
                                           <td>{split.transaction_type}</td>
                                           <td>{split.account_name} ({split.account_number})</td>
                                           <td>{split.transaction_memo || "N/A"}</td>
-                                          <td className="text-end">{split.debit ? parseFloat(split.debit).toFixed(2) : "-"}</td>
-                                          <td className="text-end">{split.credit ? parseFloat(split.credit).toFixed(2) : "-"}</td>
-                                          <td className="text-end">{parseFloat(split.balance || 0).toFixed(2)}</td>
+                                          <td className="text-end">{formatNumberOrDash(split.debit)}</td>
+                                          <td className="text-end">{formatNumberOrDash(split.credit)}</td>
+                                          <td className="text-end">{formatNumber(split.balance || 0)}</td>
                                         </tr>
                                       ))}
                                       {/* Account Total */}
@@ -221,9 +222,9 @@ const CustomerBalanceDetails = () => {
                                           Total - {account.account_name}
                                         </td>
                                         <td></td>
-                                        <td className="text-end">{parseFloat(account.total_debit || 0).toFixed(2)}</td>
-                                        <td className="text-end">{parseFloat(account.total_credit || 0).toFixed(2)}</td>
-                                        <td className="text-end">{parseFloat(account.total_balance || 0).toFixed(2)}</td>
+                                        <td className="text-end">{formatNumber(account.total_debit || 0)}</td>
+                                        <td className="text-end">{formatNumber(account.total_credit || 0)}</td>
+                                        <td className="text-end">{formatNumber(account.total_balance || 0)}</td>
                                       </tr>
                                     </React.Fragment>
                                   ))}
@@ -236,9 +237,9 @@ const CustomerBalanceDetails = () => {
                         <tfoot>
                           <tr style={{ backgroundColor: "#f8f9fa", fontWeight: "bold" }}>
                             <td colSpan="5" className="text-end">Grand Total</td>
-                            <td className="text-end">{parseFloat(report.grand_total_debit || 0).toFixed(2)}</td>
-                            <td className="text-end">{parseFloat(report.grand_total_credit || 0).toFixed(2)}</td>
-                            <td className="text-end">{parseFloat(report.grand_total_balance || 0).toFixed(2)}</td>
+                            <td className="text-end">{formatNumber(report.grand_total_debit || 0)}</td>
+                            <td className="text-end">{formatNumber(report.grand_total_credit || 0)}</td>
+                            <td className="text-end">{formatNumber(report.grand_total_balance || 0)}</td>
                           </tr>
                         </tfoot>
                       </Table>

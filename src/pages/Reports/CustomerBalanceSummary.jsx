@@ -19,6 +19,7 @@ import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import axiosInstance from "../../services/axiosService";
 import moment from "moment/moment";
+import { formatNumber } from "../../utils/numberFormat";
 
 const CustomerBalanceSummary = () => {
   document.title = "Customer Balance Summary";
@@ -125,11 +126,11 @@ const CustomerBalanceSummary = () => {
                               <td className="text-end">
                                 {customer.balance >= 0 ? (
                                   <span style={{ color: "black" }}>
-                                    {parseFloat(customer.balance).toFixed(2)}
+                                    {formatNumber(customer.balance)}
                                   </span>
                                 ) : (
                                   <span style={{ color: "black" }}>
-                                    {parseFloat(customer.balance).toFixed(2)}
+                                    {formatNumber(customer.balance)}
                                   </span>
                                 )}
                               </td>
@@ -141,7 +142,7 @@ const CustomerBalanceSummary = () => {
                             <td className="text-end">Total Balance</td>
                             <td className="text-end">
                               <span style={{ color: "black" }}>
-                                {parseFloat(report.total_balance).toFixed(2)}
+                                {formatNumber(report.total_balance)}
                               </span>
                             </td>
                           </tr>

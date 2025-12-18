@@ -266,8 +266,8 @@ const Leases = () => {
                       columns={columns}
                       data={leases}
                       isGlobalFilter={true}
-                      isPagination={true}
-                      isShowingPageSize={true}
+                      isPagination={false}
+                      isShowingPageSize={false}
                       paginationDiv="col-sm-12 col-md-7"
                       pagination="pagination justify-content-end pagination-rounded"
                     />

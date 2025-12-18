@@ -19,6 +19,7 @@ import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import axiosInstance from "../../services/axiosService";
 import moment from "moment/moment";
+import { formatNumber, formatNumberOrDash } from "../../utils/numberFormat";
 
 const TrialBalance = () => {
   document.title = "Trial Balance";
@@ -113,10 +114,10 @@ const TrialBalance = () => {
       enableSorting: false,
       cell: ({ row }) => {
         if (row.original.is_total_row) {
-          return <strong>{parseFloat(row.original.debit_balance || 0).toFixed(2)}</strong>;
+          return <strong>{formatNumber(row.original.debit_balance || 0)}</strong>;
         }
         const val = parseFloat(row.original.debit_balance || 0);
-        return val > 0 ? <>{val.toFixed(2)}</> : <>-</>;
+        return <>{formatNumberOrDash(val)}</>;
       },
     },
     {
@@ -127,10 +128,10 @@ const TrialBalance = () => {
       enableSorting: false,
       cell: ({ row }) => {
         if (row.original.is_total_row) {
-          return <strong>{parseFloat(row.original.credit_balance || 0).toFixed(2)}</strong>;
+          return <strong>{formatNumber(row.original.credit_balance || 0)}</strong>;
         }
         const val = parseFloat(row.original.credit_balance || 0);
-        return val > 0 ? <>{val.toFixed(2)}</> : <>-</>;
+        return <>{formatNumberOrDash(val)}</>;
       },
     },
   ];
@@ -183,7 +184,7 @@ const TrialBalance = () => {
                               </span>
                             ) : (
                               <span className="text-danger ms-2">
-                                <strong>✗ Not Balanced</strong> (Difference: {Math.abs(parseFloat(report.total_debit || 0) - parseFloat(report.total_credit || 0)).toFixed(2)})
+                                <strong>✗ Not Balanced</strong> (Difference: {formatNumber(Math.abs(parseFloat(report.total_debit || 0) - parseFloat(report.total_credit || 0)))})
                               </span>
                             )}
                           </p>

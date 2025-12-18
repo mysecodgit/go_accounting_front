@@ -19,6 +19,7 @@ import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import axiosInstance from "../../services/axiosService";
 import moment from "moment/moment";
+import { formatNumber } from "../../utils/numberFormat";
 
 const ProfitAndLossStandard = () => {
   document.title = "Profit and Loss (Standard)";
@@ -143,7 +144,7 @@ const ProfitAndLossStandard = () => {
                               <tr key={`income-${account.account_id}`}>
                                 <td>{account.account_number}</td>
                                 <td>{account.account_name}</td>
-                                <td className="text-end">{parseFloat(account.balance).toFixed(2)}</td>
+                                <td className="text-end">{formatNumber(account.balance)}</td>
                               </tr>
                             ))}
                             {report.income.accounts.length === 0 && (
@@ -153,7 +154,7 @@ const ProfitAndLossStandard = () => {
                             )}
                             <tr className="table-info">
                               <td colSpan="2" className="text-end"><strong>Total Income</strong></td>
-                              <td className="text-end"><strong>{parseFloat(report.income.total).toFixed(2)}</strong></td>
+                              <td className="text-end"><strong>{formatNumber(report.income.total)}</strong></td>
                             </tr>
                             <tr>
                               <td colSpan="3" className="bg-light">
@@ -164,7 +165,7 @@ const ProfitAndLossStandard = () => {
                               <tr key={`expense-${account.account_id}`}>
                                 <td>{account.account_number}</td>
                                 <td>{account.account_name}</td>
-                                <td className="text-end">{parseFloat(account.balance).toFixed(2)}</td>
+                                <td className="text-end">{formatNumber(account.balance)}</td>
                               </tr>
                             ))}
                             {report.expenses.accounts.length === 0 && (
@@ -174,11 +175,11 @@ const ProfitAndLossStandard = () => {
                             )}
                             <tr className="table-info">
                               <td colSpan="2" className="text-end"><strong>Total Expenses</strong></td>
-                              <td className="text-end"><strong>{parseFloat(report.expenses.total).toFixed(2)}</strong></td>
+                              <td className="text-end"><strong>{formatNumber(report.expenses.total)}</strong></td>
                             </tr>
                             <tr className={report.net_profit_loss >= 0 ? "table-success" : "table-danger"}>
                               <td colSpan="2" className="text-end"><strong>Net {report.net_profit_loss >= 0 ? "Profit" : "Loss"}</strong></td>
-                              <td className="text-end"><strong>{parseFloat(report.net_profit_loss).toFixed(2)}</strong></td>
+                              <td className="text-end"><strong>{formatNumber(report.net_profit_loss)}</strong></td>
                             </tr>
                           </tbody>
                         </Table>
