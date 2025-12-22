@@ -138,6 +138,77 @@ const TrialBalance = () => {
 
   return (
     <React.Fragment>
+      <style>{`
+        @media print {
+          .screen-only {
+            display: none !important;
+          }
+          .print-only {
+            display: block !important;
+          }
+          .no-print {
+            display: none !important;
+          }
+          body {
+            background: white !important;
+          }
+          .page-content {
+            padding: 0 !important;
+            margin: 0 !important;
+          }
+          @page {
+            size: A4;
+            margin: 1.5cm;
+          }
+          .print-report {
+            font-family: Arial, sans-serif;
+            color: black;
+          }
+          .print-header {
+            text-align: center;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #000;
+            padding-bottom: 10px;
+          }
+          .print-header h2 {
+            margin: 0;
+            font-size: 18px;
+            font-weight: bold;
+          }
+          .print-header p {
+            margin: 5px 0;
+            font-size: 12px;
+          }
+          .print-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+            font-size: 11px;
+          }
+          .print-table th,
+          .print-table td {
+            padding: 6px 8px;
+            border: 1px solid #000;
+            text-align: left;
+          }
+          .print-table th {
+            background-color: #f0f0f0;
+            font-weight: bold;
+          }
+          .print-table .text-right {
+            text-align: right;
+          }
+          .print-table .total-row {
+            font-weight: bold;
+            border-top: 2px solid #000;
+          }
+        }
+        @media screen {
+          .print-only {
+            display: none !important;
+          }
+        }
+      `}</style>
       <div className="page-content">
         <Container fluid>
           <Breadcrumbs title="Trial Balance" breadcrumbItem="Trial Balance" />
@@ -145,7 +216,7 @@ const TrialBalance = () => {
             <Col xs={12}>
               <Card>
                 <CardBody>
-                  <Row className="mb-3">
+                  <Row className="mb-3 no-print">
                     <Col md={3}>
                       <Label>As Of Date <span className="text-danger">*</span></Label>
                       <Input
@@ -172,35 +243,95 @@ const TrialBalance = () => {
                   {isLoading && <Spinners />}
 
                   {report && !isLoading && (
-                    <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
-                      <Row className="mb-3" style={{ width: "60%", textAlign: "center" }}>
-                        <Col>
-                          <h5>Trial Balance</h5>
-                          <p className="text-muted">
-                            As of: {moment(report.as_of_date).format("MMM DD, YYYY")}
-                            {report.is_balanced ? (
-                              <span className="text-success ms-2">
-                                <strong>✓ Balanced</strong>
-                              </span>
-                            ) : (
-                              <span className="text-danger ms-2">
-                                <strong>✗ Not Balanced</strong> (Difference: {formatNumber(Math.abs(parseFloat(report.total_debit || 0) - parseFloat(report.total_credit || 0)))})
-                              </span>
-                            )}
-                          </p>
-                        </Col>
-                      </Row>
+                    <div className="screen-only">
+                      <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+                        <Row className="mb-3" style={{ width: "60%", textAlign: "center" }}>
+                          <Col>
+                            <div className="d-flex justify-content-between align-items-center mb-2">
+                              <div style={{ flex: 1 }}></div>
+                              <div style={{ flex: 1, textAlign: "center" }}>
+                                <h5>Trial Balance</h5>
+                                <p className="text-muted">
+                                  As of: {moment(report.as_of_date).format("MMM DD, YYYY")}
+                                  {report.is_balanced ? (
+                                    <span className="text-success ms-2">
+                                      <strong>✓ Balanced</strong>
+                                    </span>
+                                  ) : (
+                                    <span className="text-danger ms-2">
+                                      <strong>✗ Not Balanced</strong> (Difference: {formatNumber(Math.abs(parseFloat(report.total_debit || 0) - parseFloat(report.total_credit || 0)))})
+                                    </span>
+                                  )}
+                                </p>
+                              </div>
+                              <div style={{ flex: 1, textAlign: "right" }}>
+                                <Button color="primary" size="sm" className="no-print" onClick={() => window.print()}>
+                                  <i className="fas fa-print me-1"></i> Print
+                                </Button>
+                              </div>
+                            </div>
+                          </Col>
+                        </Row>
 
-                      <div style={{ width: "30%", margin: "0 auto" }}>
-                        <TableContainer
-                          columns={columns}
-                          data={report.accounts || []}
-                          isGlobalFilter={true}
-                          isPagination={false}
-                          tableClass="table-hover dt-responsive nowrap w-100 dataTable no-footer dtr-inline"
-                          theadClass="table-light"
-                        />
+                        <div style={{ width: "30%", margin: "0 auto" }}>
+                          <TableContainer
+                            columns={columns}
+                            data={report.accounts || []}
+                            isGlobalFilter={true}
+                            isPagination={false}
+                            tableClass="table-hover dt-responsive nowrap w-100 dataTable no-footer dtr-inline"
+                            theadClass="table-light"
+                          />
+                        </div>
                       </div>
+                    </div>
+                  )}
+
+                  {/* Print-only section */}
+                  {report && !isLoading && (
+                    <div className="print-only print-report">
+                      <div className="print-header">
+                        <h2>Trial Balance</h2>
+                        <p>As of: {moment(report.as_of_date).format("MMMM DD, YYYY")}</p>
+                        <p>
+                          {report.is_balanced ? (
+                            <strong>✓ Balanced</strong>
+                          ) : (
+                            <strong>✗ Not Balanced (Difference: {formatNumber(Math.abs(parseFloat(report.total_debit || 0) - parseFloat(report.total_credit || 0)))})</strong>
+                          )}
+                        </p>
+                      </div>
+
+                      <table className="print-table" style={{ width: "100%", maxWidth: "800px", margin: "0 auto" }}>
+                        <thead>
+                          <tr>
+                            <th style={{ width: "15%" }}>Account #</th>
+                            <th style={{ width: "50%" }}>Account Name</th>
+                            <th style={{ width: "17.5%", textAlign: "right" }}>Debit</th>
+                            <th style={{ width: "17.5%", textAlign: "right" }}>Credit</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {report.accounts.filter(acc => !acc.is_total_row).map((account, index) => (
+                            <tr key={index}>
+                              <td>{account.account_number || "-"}</td>
+                              <td>{account.account_name || "-"}</td>
+                              <td style={{ textAlign: "right" }}>
+                                {parseFloat(account.debit_balance || 0) > 0 ? formatNumber(account.debit_balance) : "-"}
+                              </td>
+                              <td style={{ textAlign: "right" }}>
+                                {parseFloat(account.credit_balance || 0) > 0 ? formatNumber(account.credit_balance) : "-"}
+                              </td>
+                            </tr>
+                          ))}
+                          <tr className="total-row">
+                            <td>-</td>
+                            <td><strong>TOTAL</strong></td>
+                            <td style={{ textAlign: "right" }}><strong>{formatNumber(report.total_debit || 0)}</strong></td>
+                            <td style={{ textAlign: "right" }}><strong>{formatNumber(report.total_credit || 0)}</strong></td>
+                          </tr>
+                        </tbody>
+                      </table>
                     </div>
                   )}
                 </CardBody>

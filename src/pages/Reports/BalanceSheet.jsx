@@ -68,6 +68,111 @@ const BalanceSheet = () => {
 
   return (
     <React.Fragment>
+      <style>{`
+        @media print {
+          .screen-only {
+            display: none !important;
+          }
+          .print-only {
+            display: block !important;
+          }
+            .full-width {
+              width: 100% !important;
+            }
+
+          .no-print {
+            display: none !important;
+          }
+          body {
+            background: white !important;
+          }
+          .page-content {
+            padding: 0 !important;
+            margin: 0 !important;
+          }
+          @page {
+            size: A4;
+            margin: 1.5cm;
+          }
+          .print-report {
+            font-family: Arial, sans-serif;
+            color: black;
+          }
+          .print-header {
+            text-align: center;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #000;
+            padding-bottom: 10px;
+          }
+          .print-header h2 {
+            margin: 0;
+            font-size: 18px;
+            font-weight: bold;
+          }
+          .print-header p {
+            margin: 5px 0;
+            font-size: 12px;
+          }
+          .print-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+            font-size: 11px;
+          }
+          .print-table th,
+          .print-table td {
+            padding: 6px 8px;
+            border: 1px solid #000;
+            text-align: left;
+          }
+          .print-table th {
+            background-color: #f0f0f0;
+            font-weight: bold;
+          }
+          .print-table .text-right {
+            text-align: right;
+          }
+          .print-table .section-header {
+            background-color: #e0e0e0;
+            font-weight: bold;
+          }
+          .print-table .total-row {
+            font-weight: bold;
+            border-top: 2px solid #000;
+          }
+          .print-summary {
+            margin-top: 20px;
+            padding-top: 10px;
+            border-top: 2px solid #000;
+          }
+          .liabilities-equity-col {
+            width: 100% !important;
+            max-width: 100% !important;
+            flex: 0 0 100% !important;
+          }
+          .equity-table-print {
+            width: 100% !important;
+          }
+          .print-only.full-width {
+            display: table-row !important;
+          }
+          .print-only.full-width td {
+            width: 50% !important;
+          }
+          .print-only.full-width td:first-child {
+            width: 70% !important;
+          }
+          .print-only.full-width td:last-child {
+            width: 30% !important;
+            text-align: right !important;
+          }
+        }
+        @media screen {
+          .print-only {
+            display: none !important;
+          }
+        }
+      `}</style>
       <div className="page-content">
         <Container fluid>
           <Breadcrumbs title="Balance Sheet" breadcrumbItem="Balance Sheet" />
@@ -75,7 +180,7 @@ const BalanceSheet = () => {
             <Col xs={12}>
               <Card>
                 <CardBody>
-                  <Row className="mb-3">
+                  <Row className="mb-3 no-print">
                     <Col md={4}>
                       <Label>As of Date <span className="text-danger">*</span></Label>
                       <Input
@@ -106,8 +211,15 @@ const BalanceSheet = () => {
                     <div>
                       <Row className="mb-3">
                         <Col>
-                          <h4>Balance Sheet</h4>
-                          <p className="text-muted">As of: {moment(balanceSheet.as_of_date).format("MMMM DD, YYYY")}</p>
+                          <div className="d-flex justify-content-between align-items-center">
+                            <div>
+                              <h4>Balance Sheet</h4>
+                              <p className="text-muted">As of: {moment(balanceSheet.as_of_date).format("MMMM DD, YYYY")}</p>
+                            </div>
+                            <Button color="primary" className="no-print" onClick={() => window.print()}>
+                              <i className="fas fa-print me-1"></i> Print
+                            </Button>
+                          </div>
                         </Col>
                       </Row>
 
@@ -140,7 +252,7 @@ const BalanceSheet = () => {
                           </Card>
                         </Col>
 
-                        <Col md={6}>
+                        <Col md={6} className="liabilities-equity-col">
                           <Card>
                             <CardBody>
                               <h5 className="mb-3">{balanceSheet.liabilities.section_name}</h5>
@@ -170,7 +282,7 @@ const BalanceSheet = () => {
                           <Card className="mt-3">
                             <CardBody>
                               <h5 className="mb-3">{balanceSheet.equity.section_name}</h5>
-                              <Table striped>
+                              <Table striped className="equity-table-print">
                                 <thead>
                                   <tr>
                                     <th>Account</th>
@@ -188,6 +300,15 @@ const BalanceSheet = () => {
                                     <td>Total Equity</td>
                                     <td className="text-end">{formatNumber(balanceSheet.equity.total)}</td>
                                   </tr>
+                                  <tr className="">
+                                    <td></td>
+                                    <td className="text-end"> </td>
+                                  </tr>
+                                
+                                  <tr className="fw-bold print-only full-width" >
+                                    <td >Total Liabilities & Equity </td>
+                                    <td  className="text-end">{formatNumber(balanceSheet.total_liabilities_and_equity)}</td>
+                                  </tr>
                                 </tbody>
                               </Table>
                             </CardBody>
@@ -195,31 +316,46 @@ const BalanceSheet = () => {
                         </Col>
                       </Row>
 
-                      <Row className="mt-3">
+                      <Row className="mt-4 screen-only">
                         <Col>
-                          <Card>
-                            <CardBody>
-                              <Row>
-                                <Col md={6}>
-                                  <h5>Total Assets: {formatNumber(balanceSheet.total_assets)}</h5>
+                          <Card className="border-0 shadow-sm">
+                            <CardBody className="bg-light">
+                              <Row className="align-items-center">
+                                <Col md={6} className="text-center mb-3 mb-md-0">
+                                  <div className="p-3 bg-white rounded border">
+                                    <h6 className="text-muted mb-2" style={{ fontSize: "0.9rem", fontWeight: "normal" }}>Total Assets</h6>
+                                    <h4 className="mb-0 fw-bold" style={{ color: "#2c3e50" }}>
+                                      {formatNumber(balanceSheet.total_assets)}
+                                    </h4>
+                                  </div>
                                 </Col>
-                                <Col md={6}>
-                                  <h5>Total Liabilities & Equity: {formatNumber(balanceSheet.total_liabilities_and_equity)}</h5>
+                                <Col md={6} className="text-center">
+                                  <div className="p-3 bg-white rounded border">
+                                    <h6 className="text-muted mb-2" style={{ fontSize: "0.9rem", fontWeight: "normal" }}>Total Liabilities & Equity</h6>
+                                    <h4 className="mb-0 fw-bold" style={{ color: "#2c3e50" }}>
+                                      {formatNumber(balanceSheet.total_liabilities_and_equity)}
+                                    </h4>
+                                  </div>
                                 </Col>
                               </Row>
-                              <Row className="mt-2">
-                                <Col>
-                                  <p className={balanceSheet.is_balanced ? "text-success" : "text-danger"}>
-                                    {balanceSheet.is_balanced ? "✓ Balanced" : "✗ Not Balanced"}
-                                  </p>
+                              <Row className="mt-3">
+                                <Col className="text-center">
+                                  <div className={`d-inline-block px-4 py-2 rounded ${balanceSheet.is_balanced ? "bg-success" : "bg-danger"} text-white`}>
+                                    <strong>
+                                      {balanceSheet.is_balanced ? "✓ Balanced" : "✗ Not Balanced"}
+                                    </strong>
+                                  </div>
                                 </Col>
                               </Row>
                             </CardBody>
                           </Card>
                         </Col>
                       </Row>
+
+                     
                     </div>
                   )}
+
                 </CardBody>
               </Card>
             </Col>
