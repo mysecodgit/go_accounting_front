@@ -113,12 +113,13 @@ const CreateCreditMemo = () => {
       const { data } = await axiosInstance.get(url);
       setAccounts(data || []);
       
-      // Filter deposit accounts (Bank, Cash, etc. - Asset accounts)
+      // Filter deposit accounts (Bank, Cash, Asset, and Expense accounts)
       const depositAccountsList = (data || []).filter((account) => {
         const typeName = account.account_type?.typeName || "";
         return typeName.toLowerCase().includes("bank") || 
                typeName.toLowerCase().includes("cash") ||
-               typeName.toLowerCase().includes("asset");
+               typeName.toLowerCase().includes("asset") ||
+               typeName.toLowerCase().includes("expense");
       });
       setDepositAccounts(depositAccountsList);
 

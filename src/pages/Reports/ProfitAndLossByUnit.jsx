@@ -27,6 +27,7 @@ const ProfitAndLossByUnit = () => {
 
   const [isLoading, setLoading] = useState(false);
   const [report, setReport] = useState(null);
+  const [buildingName, setBuildingName] = useState("");
 
   const validation = useFormik({
     enableReinitialize: true,
@@ -62,8 +63,32 @@ const ProfitAndLossByUnit = () => {
     }
   };
 
+  const fetchBuildingName = async () => {
+    if (!buildingId) return;
+    try {
+      const { data } = await axiosInstance.get(`buildings/${buildingId}`);
+      setBuildingName(data.name || "");
+    } catch (error) {
+      console.error("Error fetching building name:", error);
+    }
+  };
+
+  const handlePrint = () => {
+    if (!report) return;
+    const originalTitle = document.title;
+    const startDateStr = moment(report.start_date).format("MMM D, YYYY").toLowerCase();
+    const endDateStr = moment(report.end_date).format("MMM D, YYYY").toLowerCase();
+    document.title = `Profit and Loss by Class ${startDateStr} to ${endDateStr}`;
+    window.print();
+    // Restore original title after a short delay
+    setTimeout(() => {
+      document.title = originalTitle;
+    }, 1000);
+  };
+
   useEffect(() => {
     if (buildingId) {
+      fetchBuildingName();
       fetchReport(validation.values);
     }
   }, [buildingId]);
@@ -131,6 +156,14 @@ const ProfitAndLossByUnit = () => {
           .print-header p {
             margin: 5px 0;
             font-size: 12px;
+          }
+          .print-building-name {
+            font-size: 24px;
+            font-weight: bold;
+            text-align: center;
+            margin-bottom: 20px;
+            padding: 10px 0;
+            text-transform: uppercase;
           }
           .print-table {
             width: 100%;
@@ -228,7 +261,7 @@ const ProfitAndLossByUnit = () => {
                               </p>
                             </div>
                             <div style={{ flex: 1, textAlign: "right" }}>
-                              <Button color="primary" size="sm" className="no-print" onClick={() => window.print()}>
+                              <Button color="primary" size="sm" className="no-print" onClick={handlePrint}>
                                 <i className="fas fa-print me-1"></i> Print
                               </Button>
                             </div>
@@ -377,6 +410,12 @@ const ProfitAndLossByUnit = () => {
                   {/* Print-only section with page breaks */}
                   {report && !isLoading && (
                     <div className="print-only">
+                      {/* Print-only building name header - only on first page */}
+                      {buildingName && getUnitPages().length > 0 && (
+                        <div className="print-building-name" style={{ pageBreakAfter: "avoid" }}>
+                          {buildingName}
+                        </div>
+                      )}
                       {getUnitPages().map((unitPage, pageIndex) => (
                         <div key={`print-page-${pageIndex}`} className={pageIndex > 0 ? "print-page-break" : ""}>
                           <div className="print-report">

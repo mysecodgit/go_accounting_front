@@ -27,6 +27,7 @@ const BalanceSheet = () => {
 
   const [isLoading, setLoading] = useState(false);
   const [balanceSheet, setBalanceSheet] = useState(null);
+  const [buildingName, setBuildingName] = useState("");
 
   const validation = useFormik({
     enableReinitialize: true,
@@ -60,8 +61,31 @@ const BalanceSheet = () => {
     }
   };
 
+  const fetchBuildingName = async () => {
+    if (!buildingId) return;
+    try {
+      const { data } = await axiosInstance.get(`buildings/${buildingId}`);
+      setBuildingName(data.name || "");
+    } catch (error) {
+      console.error("Error fetching building name:", error);
+    }
+  };
+
+  const handlePrint = () => {
+    if (!balanceSheet) return;
+    const originalTitle = document.title;
+    const dateStr = moment(balanceSheet.as_of_date).format("MMM D, YYYY").toLowerCase();
+    document.title = `Balance Sheet As of ${dateStr}`;
+    window.print();
+    // Restore original title after a short delay
+    setTimeout(() => {
+      document.title = originalTitle;
+    }, 1000);
+  };
+
   useEffect(() => {
     if (buildingId) {
+      fetchBuildingName();
       fetchBalanceSheet(validation.values.as_of_date);
     }
   }, [buildingId]);
@@ -112,6 +136,14 @@ const BalanceSheet = () => {
           .print-header p {
             margin: 5px 0;
             font-size: 12px;
+          }
+          .print-building-name {
+            font-size: 24px;
+            font-weight: bold;
+            text-align: center;
+            margin-bottom: 20px;
+            padding: 10px 0;
+            text-transform: uppercase;
           }
           .print-table {
             width: 100%;
@@ -209,14 +241,25 @@ const BalanceSheet = () => {
 
                   {balanceSheet && !isLoading && (
                     <div>
-                      <Row className="mb-3">
+                      {/* Print-only building name header */}
+                      {buildingName && (
+                        <div className="print-only print-building-name">
+                          {buildingName}
+                        </div>
+                      )}
+                      {/* Print-only centered header */}
+                      <div className="print-only print-header">
+                        <h2>Balance Sheet</h2>
+                        <p>As of: {moment(balanceSheet.as_of_date).format("MMMM DD, YYYY")}</p>
+                      </div>
+                      <Row className="mb-3 screen-only">
                         <Col>
                           <div className="d-flex justify-content-between align-items-center">
                             <div>
                               <h4>Balance Sheet</h4>
                               <p className="text-muted">As of: {moment(balanceSheet.as_of_date).format("MMMM DD, YYYY")}</p>
                             </div>
-                            <Button color="primary" className="no-print" onClick={() => window.print()}>
+                            <Button color="primary" className="no-print" onClick={handlePrint}>
                               <i className="fas fa-print me-1"></i> Print
                             </Button>
                           </div>

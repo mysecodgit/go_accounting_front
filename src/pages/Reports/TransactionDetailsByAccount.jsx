@@ -29,23 +29,22 @@ const TransactionDetailsByAccount = () => {
   const [report, setReport] = useState(null);
   const [accounts, setAccounts] = useState([]);
   const [units, setUnits] = useState([]);
+  const [selectedAccountIds, setSelectedAccountIds] = useState([]);
 
   const validation = useFormik({
     enableReinitialize: true,
     initialValues: {
       start_date: moment().subtract(30, "days").format("YYYY-MM-DD"),
       end_date: moment().format("YYYY-MM-DD"),
-      account_id: "",
       unit_id: "",
     },
     validationSchema: Yup.object({
       start_date: Yup.string().required("Start date is required"),
       end_date: Yup.string().required("End date is required"),
-      account_id: Yup.number(),
       unit_id: Yup.number(),
     }),
     onSubmit: async (values) => {
-      await fetchReport(values.start_date, values.end_date, values.account_id, values.unit_id);
+      await fetchReport(values.start_date, values.end_date, selectedAccountIds, values.unit_id);
     },
   });
 
@@ -75,7 +74,7 @@ const TransactionDetailsByAccount = () => {
     }
   };
 
-  const fetchReport = async (startDate, endDate, accountId, unitId) => {
+  const fetchReport = async (startDate, endDate, accountIds, unitId) => {
     if (!buildingId) {
       toast.error("Building ID is required");
       return;
@@ -84,8 +83,11 @@ const TransactionDetailsByAccount = () => {
     setLoading(true);
     try {
       let url = `buildings/${buildingId}/reports/transaction-details-by-account?start_date=${startDate}&end_date=${endDate}`;
-      if (accountId) {
-        url += `&account_id=${accountId}`;
+      // Add multiple account_id parameters
+      if (accountIds && accountIds.length > 0) {
+        accountIds.forEach((accountId) => {
+          url += `&account_id=${accountId}`;
+        });
       }
       if (unitId) {
         url += `&unit_id=${unitId}`;
@@ -97,6 +99,28 @@ const TransactionDetailsByAccount = () => {
       console.error("Error fetching transaction details:", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleAccountToggle = (accountId) => {
+    const accountIdNum = parseInt(accountId, 10);
+
+    console.log("This is from handle toggle ", accountIdNum);
+    setSelectedAccountIds((prev) =>
+      prev.includes(accountIdNum)
+        ? prev.filter((item) => item !== accountIdNum) // deselect
+        : [...prev, accountIdNum] // select
+    );
+    
+    
+  };
+
+  const handleSelectAllAccounts = (e) => {
+    const isChecked = e.target.checked;
+    if (isChecked) {
+      setSelectedAccountIds(accounts.map((acc) => parseInt(acc.id, 10)));
+    } else {
+      setSelectedAccountIds([]);
     }
   };
 
@@ -138,21 +162,76 @@ const TransactionDetailsByAccount = () => {
                       />
                     </Col>
                     <Col md={3}>
-                      <Label>Account (Optional)</Label>
-                      <Input
-                        name="account_id"
-                        type="select"
-                        onChange={validation.handleChange}
-                        onBlur={validation.handleBlur}
-                        value={validation.values.account_id || ""}
-                      >
-                        <option value="">All Accounts</option>
-                        {accounts.map((account) => (
-                          <option key={account.id} value={account.id}>
-                            {account.account_name} ({account.account_number})
-                          </option>
-                        ))}
-                      </Input>
+                      <Label>Account(s) (Optional)</Label>
+                      <div style={{ maxHeight: "200px", overflowY: "auto", border: "1px solid #ced4da", borderRadius: "0.25rem", padding: "8px" }}>
+                        <div className="mb-2">
+                          <input
+                            type="checkbox"
+                            checked={selectedAccountIds.length === accounts.length && accounts.length > 0}
+                            onChange={handleSelectAllAccounts}
+                            id="select-all-accounts"
+                            style={{ cursor: "pointer", marginRight: "8px" }}
+                          />
+                          <label htmlFor="select-all-accounts" style={{ cursor: "pointer", marginBottom: 0 }}>
+                            <strong>Select All</strong>
+                          </label>
+                        </div>
+                        <hr className="my-2" />
+                        {accounts.length === 0 ? (
+                          <div className="text-muted">No accounts available</div>
+                        ) : (
+                          accounts.map((account) => {
+                          
+                            const accountId = parseInt(account.id, 10);
+                            const isChecked = selectedAccountIds.some(id => parseInt(id, 10) === accountId);
+                            return (
+                              <div 
+                                key={account.id} 
+                                className="mb-1" 
+                                style={{ display: "flex", alignItems: "center", position: "relative", zIndex: 1 }}
+                                onClick={() => handleAccountToggle(account.id)}
+
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={selectedAccountIds.includes(account.id)}
+                                  readOnly
+                                  id={`account-${account.id}`}
+                                  style={{ 
+                                    cursor: "pointer", 
+                                    marginRight: "8px", 
+                                    width: "18px", 
+                                    height: "18px", 
+                                    flexShrink: 0,
+                                    pointerEvents: "none"
+                                  }}
+                                />
+                                <label 
+                                  htmlFor={`account-${account.id}`} 
+                                  style={{ 
+                                    cursor: "pointer", 
+                                    marginBottom: 0, 
+                                    userSelect: "none", 
+                                    flex: 1,
+                                    pointerEvents: "auto"
+                                  }}
+                                >
+                                  {account.account_name} ({account.account_number})
+                                </label>
+                              </div>
+                            );
+                          })
+                        )}
+                      </div>
+                      <div className="mt-2">
+                        <small className="text-muted">
+                          {selectedAccountIds.length > 0 ? (
+                            <span>{selectedAccountIds.length} account{selectedAccountIds.length !== 1 ? "s" : ""} selected: [{selectedAccountIds.join(", ")}]</span>
+                          ) : (
+                            <span>No accounts selected</span>
+                          )}
+                        </small>
+                      </div>
                     </Col>
                     <Col md={3}>
                       <Label>Unit (Optional)</Label>

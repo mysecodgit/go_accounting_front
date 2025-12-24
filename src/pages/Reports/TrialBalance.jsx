@@ -27,6 +27,7 @@ const TrialBalance = () => {
 
   const [isLoading, setLoading] = useState(false);
   const [report, setReport] = useState(null);
+  const [buildingName, setBuildingName] = useState("");
 
   const validation = useFormik({
     enableReinitialize: true,
@@ -60,8 +61,31 @@ const TrialBalance = () => {
     }
   };
 
+  const fetchBuildingName = async () => {
+    if (!buildingId) return;
+    try {
+      const { data } = await axiosInstance.get(`buildings/${buildingId}`);
+      setBuildingName(data.name || "");
+    } catch (error) {
+      console.error("Error fetching building name:", error);
+    }
+  };
+
+  const handlePrint = () => {
+    if (!report) return;
+    const originalTitle = document.title;
+    const dateStr = moment(report.as_of_date).format("MMM D, YYYY").toLowerCase();
+    document.title = `Trial Balance As of ${dateStr}`;
+    window.print();
+    // Restore original title after a short delay
+    setTimeout(() => {
+      document.title = originalTitle;
+    }, 1000);
+  };
+
   useEffect(() => {
     if (buildingId) {
+      fetchBuildingName();
       fetchReport(validation.values);
     }
   }, [buildingId]);
@@ -179,6 +203,14 @@ const TrialBalance = () => {
             margin: 5px 0;
             font-size: 12px;
           }
+          .print-building-name {
+            font-size: 24px;
+            font-weight: bold;
+            text-align: center;
+            margin-bottom: 20px;
+            padding: 10px 0;
+            text-transform: uppercase;
+          }
           .print-table {
             width: 100%;
             border-collapse: collapse;
@@ -254,18 +286,18 @@ const TrialBalance = () => {
                                 <p className="text-muted">
                                   As of: {moment(report.as_of_date).format("MMM DD, YYYY")}
                                   {report.is_balanced ? (
-                                    <span className="text-success ms-2">
+                                    <span className="text-success ms-2 no-print">
                                       <strong>✓ Balanced</strong>
                                     </span>
                                   ) : (
-                                    <span className="text-danger ms-2">
+                                    <span className="text-danger ms-2 no-print">
                                       <strong>✗ Not Balanced</strong> (Difference: {formatNumber(Math.abs(parseFloat(report.total_debit || 0) - parseFloat(report.total_credit || 0)))})
                                     </span>
                                   )}
                                 </p>
                               </div>
                               <div style={{ flex: 1, textAlign: "right" }}>
-                                <Button color="primary" size="sm" className="no-print" onClick={() => window.print()}>
+                                <Button color="primary" size="sm" className="no-print" onClick={handlePrint}>
                                   <i className="fas fa-print me-1"></i> Print
                                 </Button>
                               </div>
@@ -290,10 +322,16 @@ const TrialBalance = () => {
                   {/* Print-only section */}
                   {report && !isLoading && (
                     <div className="print-only print-report">
+                      {/* Print-only building name header */}
+                      {buildingName && (
+                        <div className="print-building-name">
+                          {buildingName}
+                        </div>
+                      )}
                       <div className="print-header">
                         <h2>Trial Balance</h2>
                         <p>As of: {moment(report.as_of_date).format("MMMM DD, YYYY")}</p>
-                        <p>
+                        <p className="no-print">
                           {report.is_balanced ? (
                             <strong>✓ Balanced</strong>
                           ) : (
