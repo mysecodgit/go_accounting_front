@@ -62,6 +62,18 @@ const Invoices = () => {
   const [applyDate, setApplyDate] = useState(moment().format("YYYY-MM-DD"));
   const [splitsPreview, setSplitsPreview] = useState(null);
   const [showSplitsPreviewModal, setShowSplitsPreviewModal] = useState(false);
+  // Discount states
+  const [appliedDiscounts, setAppliedDiscounts] = useState([]);
+  const [showApplyDiscountModal, setShowApplyDiscountModal] = useState(false);
+  const [selectedInvoiceIdForDiscount, setSelectedInvoiceIdForDiscount] = useState(null);
+  const [discountAmount, setDiscountAmount] = useState(0);
+  const [discountDescription, setDiscountDescription] = useState("");
+  const [discountDate, setDiscountDate] = useState(moment().format("YYYY-MM-DD"));
+  const [discountARAccount, setDiscountARAccount] = useState("");
+  const [discountIncomeAccount, setDiscountIncomeAccount] = useState("");
+  const [discountReference, setDiscountReference] = useState("");
+  const [discountSplitsPreview, setDiscountSplitsPreview] = useState(null);
+  const [showDiscountSplitsPreviewModal, setShowDiscountSplitsPreviewModal] = useState(false);
   const [userId] = useState(1); // TODO: Get from auth context
   const [showPayModal, setShowPayModal] = useState(false);
   const [isPaymentSubmitting, setIsPaymentSubmitting] = useState(false); // Prevent duplicate payment recording
@@ -402,6 +414,158 @@ const Invoices = () => {
       console.error("Error in Apply Credit:", error);
     }
   }, [fetchAvailableCreditsForApply, fetchAppliedCreditsForModal]);
+
+  // Discount functions
+  const fetchAppliedDiscountsForModal = useCallback(async (invoiceId) => {
+    try {
+      let url = `invoices/${invoiceId}/applied-discounts`;
+      if (buildingId) {
+        url = `buildings/${buildingId}/invoices/${invoiceId}/applied-discounts`;
+      }
+      const { data } = await axiosInstance.get(url);
+      setAppliedDiscounts(data || []);
+    } catch (error) {
+      console.error("Error fetching applied discounts", error);
+      setAppliedDiscounts([]);
+    }
+  }, [buildingId]);
+
+  const handleDeleteAppliedDiscount = async (appliedDiscountId) => {
+    if (!window.confirm("Are you sure you want to delete this applied discount? This will also soft delete the related transaction and splits.")) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      let url = `invoice-applied-discounts/${appliedDiscountId}`;
+      if (buildingId) {
+        url = `buildings/${buildingId}/invoice-applied-discounts/${appliedDiscountId}`;
+      }
+      await axiosInstance.delete(url);
+      toast.success("Applied discount deleted successfully");
+      
+      // Refresh applied discounts
+      if (selectedInvoiceIdForDiscount) {
+        await fetchAppliedDiscountsForModal(selectedInvoiceIdForDiscount);
+      }
+      
+      // Refresh invoices list
+      await fetchInvoices();
+    } catch (error) {
+      const errorMsg = error.response?.data?.error || "Failed to delete applied discount";
+      toast.error(errorMsg);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleApplyDiscountClick = useCallback(async (invoiceId) => {
+    console.log("handleApplyDiscountClick called with:", invoiceId);
+    setSelectedInvoiceIdForDiscount(invoiceId);
+    try {
+      await fetchAppliedDiscountsForModal(invoiceId);
+      // Get invoice to prefill A/R account
+      let url = `invoices/${invoiceId}`;
+      if (buildingId) {
+        url = `buildings/${buildingId}/invoices/${invoiceId}`;
+      }
+      const { data: invoice } = await axiosInstance.get(url);
+      if (invoice && invoice.ar_account_id) {
+        setDiscountARAccount(invoice.ar_account_id.toString());
+      }
+      setShowApplyDiscountModal(true);
+    } catch (error) {
+      console.error("Error in Apply Discount:", error);
+      toast.error("Failed to load invoice details");
+    }
+  }, [fetchAppliedDiscountsForModal, buildingId]);
+
+  const previewDiscountSplits = async () => {
+    if (!selectedInvoiceIdForDiscount || discountAmount <= 0 || !discountDescription || !discountARAccount || !discountIncomeAccount) {
+      toast.error("Please fill all required fields");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      let url = `invoices/${selectedInvoiceIdForDiscount}/preview-apply-discount`;
+      if (buildingId) {
+        url = `buildings/${buildingId}/invoices/${selectedInvoiceIdForDiscount}/preview-apply-discount`;
+      }
+
+      const payload = {
+        ar_account: parseInt(discountARAccount),
+        income_account: parseInt(discountIncomeAccount),
+        amount: parseFloat(discountAmount),
+        description: discountDescription,
+        date: discountDate,
+        reference: discountReference,
+      };
+
+      const { data } = await axiosInstance.post(url, payload);
+      setDiscountSplitsPreview(data);
+      setShowDiscountSplitsPreviewModal(true);
+    } catch (error) {
+      const errorMsg = error.response?.data?.error || "Failed to preview splits";
+      toast.error(errorMsg);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleApplyDiscount = async () => {
+    if (!selectedInvoiceIdForDiscount || discountAmount <= 0 || !discountDescription || !discountARAccount || !discountIncomeAccount) {
+      toast.error("Please fill all required fields");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      let url = `invoices/${selectedInvoiceIdForDiscount}/apply-discount`;
+      if (buildingId) {
+        url = `buildings/${buildingId}/invoices/${selectedInvoiceIdForDiscount}/apply-discount`;
+      }
+
+      const payload = {
+        ar_account: parseInt(discountARAccount),
+        income_account: parseInt(discountIncomeAccount),
+        amount: parseFloat(discountAmount),
+        description: discountDescription,
+        date: discountDate,
+        reference: discountReference,
+      };
+
+      const config = {
+        headers: {
+          "User-ID": userId.toString(),
+        },
+      };
+
+      await axiosInstance.post(url, payload, config);
+      toast.success("Discount applied successfully");
+      
+      // Refresh applied discounts
+      if (selectedInvoiceIdForDiscount) {
+        await fetchAppliedDiscountsForModal(selectedInvoiceIdForDiscount);
+      }
+      
+      // Reset form
+      setDiscountAmount(0);
+      setDiscountDescription("");
+      setDiscountDate(moment().format("YYYY-MM-DD"));
+      setDiscountARAccount("");
+      setDiscountIncomeAccount("");
+      setDiscountReference("");
+      
+      // Refresh invoices list
+      await fetchInvoices();
+    } catch (error) {
+      const errorMsg = error.response?.data?.error || "Failed to apply discount";
+      toast.error(errorMsg);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleEditClick = useCallback((invoiceId) => {
     console.log("handleEditClick called with:", invoiceId);
@@ -754,7 +918,7 @@ const Invoices = () => {
                   <i className="bx bx-money"></i> Pay
                 </Button>
               )}
-              {!isFullyPaid && (
+              {balance > 0 && (
                 <Button
                   type="button"
                   color="success"
@@ -766,6 +930,20 @@ const Invoices = () => {
                   }}
                 >
                   <i className="bx bx-check"></i> Apply Credit
+                </Button>
+              )}
+              {balance > 0 && (
+                <Button
+                  type="button"
+                  color="info"
+                  size="sm"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleApplyDiscountClick(invoiceId);
+                  }}
+                >
+                  <i className="bx bx-discount"></i> Apply Discount
                 </Button>
               )}
               <Button
@@ -1113,9 +1291,9 @@ const Invoices = () => {
             }}>Apply Credit to Invoice</ModalHeader>
             <ModalBody>
               {/* Previously Applied Credits Section */}
-              {appliedCredits.length > 0 && (
-                <div className="mb-4">
-                  <h5>Previously Applied Credits</h5>
+              <div className="mb-4">
+                <h5>Previously Applied Credits</h5>
+                {appliedCredits.length > 0 ? (
                   <Table bordered responsive size="sm">
                     <thead>
                       <tr>
@@ -1155,8 +1333,10 @@ const Invoices = () => {
                       ))}
                     </tbody>
                   </Table>
-                </div>
-              )}
+                ) : (
+                  <p className="text-muted">No previously applied credits for this invoice.</p>
+                )}
+              </div>
               
               {appliedCredits.length > 0 && <hr />}
               
@@ -1326,6 +1506,260 @@ const Invoices = () => {
                   <div className="mt-3">
                     <p>
                       <strong>Balanced:</strong> {splitsPreview.is_balanced ? "Yes ✓" : "No ✗"}
+                    </p>
+                  </div>
+                </>
+              )}
+            </ModalBody>
+          </Modal>
+
+          {/* Apply Discount Modal */}
+          <Modal isOpen={showApplyDiscountModal} toggle={() => {
+            setShowApplyDiscountModal(false);
+            setSelectedInvoiceIdForDiscount(null);
+            setDiscountAmount(0);
+            setDiscountDescription("");
+            setDiscountDate(moment().format("YYYY-MM-DD"));
+            setDiscountARAccount("");
+            setDiscountIncomeAccount("");
+            setDiscountReference("");
+          }} size="lg">
+            <ModalHeader toggle={() => {
+              setShowApplyDiscountModal(false);
+              setSelectedInvoiceIdForDiscount(null);
+              setDiscountAmount(0);
+              setDiscountDescription("");
+              setDiscountDate(moment().format("YYYY-MM-DD"));
+              setDiscountARAccount("");
+              setDiscountIncomeAccount("");
+              setDiscountReference("");
+            }}>Apply Discount to Invoice</ModalHeader>
+            <ModalBody>
+              {/* Previously Applied Discounts Section */}
+              <div className="mb-4">
+                <h5>Previously Applied Discounts</h5>
+                {appliedDiscounts.length > 0 ? (
+                  <Table bordered responsive size="sm">
+                    <thead>
+                      <tr>
+                        <th>Date</th>
+                        <th>Reference</th>
+                        <th>Amount</th>
+                        <th>Description</th>
+                        <th>Status</th>
+                        <th>Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {appliedDiscounts.map((appliedDiscount) => (
+                        <tr key={appliedDiscount.id}>
+                          <td>{moment(appliedDiscount.date).format("YYYY-MM-DD")}</td>
+                          <td>{appliedDiscount.reference || "N/A"}</td>
+                          <td>{parseFloat(appliedDiscount.amount).toFixed(2)}</td>
+                          <td>{appliedDiscount.description}</td>
+                          <td>
+                            <span className={`badge ${appliedDiscount.status === "1" ? "bg-success" : "bg-secondary"}`}>
+                              {appliedDiscount.status === "1" ? "Active" : "Inactive"}
+                            </span>
+                          </td>
+                          <td>
+                            {appliedDiscount.status === "1" && (
+                              <Button
+                                color="danger"
+                                size="sm"
+                                onClick={() => handleDeleteAppliedDiscount(appliedDiscount.id)}
+                                disabled={isLoading}
+                              >
+                                <i className="bx bx-trash"></i> Delete
+                              </Button>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </Table>
+                ) : (
+                  <p className="text-muted">No previously applied discounts for this invoice.</p>
+                )}
+              </div>
+              
+              {appliedDiscounts.length > 0 && <hr />}
+              
+              <div>
+                <Row className="mb-3">
+                  <Col md={6}>
+                    <Label>A/R Account <span className="text-danger">*</span></Label>
+                    <Input
+                      type="select"
+                      value={discountARAccount}
+                      onChange={(e) => setDiscountARAccount(e.target.value)}
+                    >
+                      <option value="">Select A/R Account</option>
+                      {accounts
+                        .filter((account) => {
+                          const typeName = account.account_type?.typeName || "";
+                          return typeName.toLowerCase().includes("receivable") || 
+                                 typeName.toLowerCase().includes("account receivable") ||
+                                 typeName.toLowerCase().includes("ar");
+                        })
+                        .map((account) => (
+                          <option key={account.id} value={account.id}>
+                            {account.account_name}
+                          </option>
+                        ))}
+                    </Input>
+                  </Col>
+                  <Col md={6}>
+                    <Label>Income Account <span className="text-danger">*</span></Label>
+                    <Input
+                      type="select"
+                      value={discountIncomeAccount}
+                      onChange={(e) => setDiscountIncomeAccount(e.target.value)}
+                    >
+                      <option value="">Select Income Account</option>
+                      {accounts
+                        .filter((account) => {
+                          const typeName = account.account_type?.typeName || "";
+                          return typeName.toLowerCase().includes("income") || 
+                                 typeName.toLowerCase().includes("revenue");
+                        })
+                        .map((account) => (
+                          <option key={account.id} value={account.id}>
+                            {account.account_name}
+                          </option>
+                        ))}
+                    </Input>
+                  </Col>
+                </Row>
+                <Row className="mb-3">
+                  <Col md={6}>
+                    <Label>Date <span className="text-danger">*</span></Label>
+                    <Input
+                      type="date"
+                      value={discountDate}
+                      onChange={(e) => setDiscountDate(e.target.value)}
+                    />
+                  </Col>
+                  <Col md={6}>
+                    <Label>Amount <span className="text-danger">*</span></Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min="0.01"
+                      value={discountAmount}
+                      onChange={(e) => {
+                        const value = parseFloat(e.target.value) || 0;
+                        setDiscountAmount(Math.round(value * 100) / 100);
+                      }}
+                    />
+                  </Col>
+                </Row>
+                <Row className="mb-3">
+                  <Col md={12}>
+                    <Label>Description <span className="text-danger">*</span></Label>
+                    <Input
+                      type="textarea"
+                      rows="3"
+                      value={discountDescription}
+                      onChange={(e) => setDiscountDescription(e.target.value)}
+                      placeholder="Enter description for this discount"
+                    />
+                  </Col>
+                </Row>
+                <Row className="mb-3">
+                  <Col md={12}>
+                    <Label>Reference</Label>
+                    <Input
+                      type="text"
+                      value={discountReference}
+                      onChange={(e) => setDiscountReference(e.target.value)}
+                      placeholder="Enter reference number"
+                    />
+                  </Col>
+                </Row>
+                <div className="text-end">
+                  <Button
+                    color="info"
+                    className="me-2"
+                    onClick={previewDiscountSplits}
+                    disabled={isLoading || discountAmount <= 0 || !discountDescription || !discountARAccount || !discountIncomeAccount}
+                  >
+                    Preview Splits
+                  </Button>
+                  <Button
+                    color="secondary"
+                    className="me-2"
+                    onClick={() => {
+                      setShowApplyDiscountModal(false);
+                      setSelectedInvoiceIdForDiscount(null);
+                      setDiscountAmount(0);
+                      setDiscountDescription("");
+                      setDiscountDate(moment().format("YYYY-MM-DD"));
+                      setDiscountARAccount("");
+                      setDiscountIncomeAccount("");
+                      setDiscountReference("");
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    color="primary"
+                    onClick={handleApplyDiscount}
+                    disabled={isLoading || discountAmount <= 0 || !discountDescription || !discountARAccount || !discountIncomeAccount}
+                  >
+                    Apply Discount
+                  </Button>
+                </div>
+              </div>
+            </ModalBody>
+          </Modal>
+
+          {/* Preview Discount Splits Modal */}
+          <Modal isOpen={showDiscountSplitsPreviewModal} toggle={() => setShowDiscountSplitsPreviewModal(false)} size="lg">
+            <ModalHeader toggle={() => setShowDiscountSplitsPreviewModal(false)}>Preview Splits</ModalHeader>
+            <ModalBody>
+              {discountSplitsPreview && (
+                <>
+                  <div className="table-responsive">
+                    <Table bordered striped>
+                      <thead className="table-light">
+                        <tr>
+                          <th>Account</th>
+                          <th>People</th>
+                          <th>Unit</th>
+                          <th className="text-end">Debit</th>
+                          <th className="text-end">Credit</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {discountSplitsPreview.splits.map((split, index) => {
+                          const unit = split.unit_id ? units.find((u) => u.id === split.unit_id) : null;
+                          return (
+                            <tr key={index}>
+                              <td>{split.account_name}</td>
+                              <td>{split.people_id ? (people.find(p => p.id === split.people_id)?.name || "N/A") : "N/A"}</td>
+                              <td>{unit ? unit.name : split.unit_id ? `ID: ${split.unit_id}` : "N/A"}</td>
+                              <td className="text-end">
+                                {split.debit ? parseFloat(split.debit).toFixed(2) : "-"}
+                              </td>
+                              <td className="text-end">
+                                {split.credit ? parseFloat(split.credit).toFixed(2) : "-"}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                        {/* Total Row */}
+                        <tr style={{ backgroundColor: "#f8f9fa", fontWeight: "bold" }}>
+                          <td colSpan="3" className="text-end">TOTAL</td>
+                          <td className="text-end">{parseFloat(discountSplitsPreview.total_debit || 0).toFixed(2)}</td>
+                          <td className="text-end">{parseFloat(discountSplitsPreview.total_credit || 0).toFixed(2)}</td>
+                        </tr>
+                      </tbody>
+                    </Table>
+                  </div>
+                  <div className="mt-3">
+                    <p>
+                      <strong>Balanced:</strong> {discountSplitsPreview.is_balanced ? "Yes ✓" : "No ✗"}
                     </p>
                   </div>
                 </>
