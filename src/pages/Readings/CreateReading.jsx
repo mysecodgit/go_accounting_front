@@ -12,6 +12,7 @@ import {
   Input,
   Form,
   Button,
+  Table,
 } from "reactstrap";
 import * as Yup from "yup";
 import { useFormik } from "formik";
@@ -30,7 +31,18 @@ const CreateReading = () => {
   const [items, setItems] = useState([]);
   const [units, setUnits] = useState([]);
   const [allLeases, setAllLeases] = useState([]);
-  const [filteredLeases, setFilteredLeases] = useState([]);
+  const [rows, setRows] = useState([
+    {
+      id: 1,
+      unit_id: "",
+      lease_id: "",
+      previous_value: "",
+      current_value: "",
+      unit_price: "",
+      total_amount: "",
+      filteredLeases: [],
+    },
+  ]);
 
   // Get last day of previous month
   const getLastDayOfPreviousMonth = () => {
@@ -51,54 +63,81 @@ const CreateReading = () => {
     enableReinitialize: true,
     initialValues: {
       item_id: "",
-      unit_id: "",
-      lease_id: "",
       reading_month: getPreviousMonthName(),
       reading_year: getCurrentYear(),
       reading_date: getLastDayOfPreviousMonth(),
-      previous_value: "",
-      current_value: "",
-      unit_price: "",
-      total_amount: "",
       notes: "",
       status: "1",
     },
     validationSchema: Yup.object({
       item_id: Yup.number().required("Item is required").min(1, "Please select an item"),
-      unit_id: Yup.number().required("Unit is required").min(1, "Please select a unit"),
-      lease_id: Yup.number().nullable(),
       reading_month: Yup.string().max(10, "Reading month must be 10 characters or less"),
       reading_year: Yup.string().max(5, "Reading year must be 5 characters or less"),
       reading_date: Yup.date().required("Reading date is required"),
-      previous_value: Yup.number().nullable().min(0, "Previous value cannot be negative"),
-      current_value: Yup.number().nullable().min(0, "Current value cannot be negative"),
-      unit_price: Yup.number().nullable().min(0, "Unit price cannot be negative"),
-      total_amount: Yup.number().nullable().min(0, "Total amount cannot be negative"),
       notes: Yup.string().nullable(),
       status: Yup.string().required("Status is required"),
     }),
     onSubmit: async (values) => {
+      // Validate rows
+      const validRows = rows.filter(
+        (row) => row.unit_id && row.current_value !== "" && row.current_value !== null
+      );
+
+      if (validRows.length === 0) {
+        toast.error("Please add at least one valid reading row with unit and current value");
+        return;
+      }
+
       try {
         setLoading(true);
-        const payload = {
-          item_id: parseInt(values.item_id),
-          unit_id: parseInt(values.unit_id),
-          lease_id: values.lease_id ? parseInt(values.lease_id) : null,
-          reading_month: values.reading_month || null,
-          reading_year: values.reading_year || null,
-          reading_date: values.reading_date,
-          previous_value: values.previous_value !== "" && values.previous_value !== null && values.previous_value !== undefined ? parseFloat(values.previous_value) : (values.previous_value === "0" || values.previous_value === 0 ? 0 : null),
-          current_value: values.current_value ? parseFloat(values.current_value) : null,
-          unit_price: values.unit_price ? parseFloat(values.unit_price) : null,
-          total_amount: values.total_amount ? parseFloat(values.total_amount) : null,
-          notes: values.notes || null,
-          status: values.status,
-        };
-        await axiosInstance.post(`buildings/${buildingId}/readings`, payload);
-        toast.success("Reading created successfully");
+        const readingsToCreate = validRows.map((row) => {
+          const currentValue = parseFloat(row.current_value) || 0;
+          const previousValue = parseFloat(row.previous_value) || 0;
+          const unitPrice = parseFloat(row.unit_price) || 0;
+          const consumption = currentValue - previousValue;
+          const totalAmount = consumption * unitPrice;
+
+          return {
+            item_id: parseInt(values.item_id),
+            unit_id: parseInt(row.unit_id),
+            lease_id: row.lease_id ? parseInt(row.lease_id) : null,
+            reading_month: values.reading_month || null,
+            reading_year: values.reading_year || null,
+            reading_date: values.reading_date,
+            previous_value:
+              row.previous_value !== "" && row.previous_value !== null && row.previous_value !== undefined
+                ? parseFloat(row.previous_value)
+                : row.previous_value === "0" || row.previous_value === 0
+                ? 0
+                : null,
+            current_value: currentValue || null,
+            unit_price: unitPrice || null,
+            total_amount: totalAmount || null,
+            notes: values.notes || null,
+            status: values.status,
+          };
+        });
+
+        const response = await axiosInstance.post(`buildings/${buildingId}/readings/import`, {
+          readings: readingsToCreate,
+        });
+
+        const successCount = response.data.success_count || 0;
+        const failedCount = response.data.failed_count || 0;
+
+        if (successCount > 0) {
+          toast.success(`Successfully created ${successCount} reading(s)`);
+        }
+        if (failedCount > 0) {
+          toast.warning(`${failedCount} reading(s) failed to create`);
+        }
+        if (response.data.errors && response.data.errors.length > 0) {
+          response.data.errors.forEach((error) => toast.error(error));
+        }
+
         navigate(`/building/${buildingId}/readings`);
       } catch (error) {
-        const errorMsg = error.response?.data?.error || "Failed to create reading";
+        const errorMsg = error.response?.data?.error || "Failed to create readings";
         toast.error(errorMsg);
       } finally {
         setLoading(false);
@@ -130,7 +169,6 @@ const CreateReading = () => {
     try {
       const { data } = await axiosInstance.get(`buildings/${buildingId}/leases`);
       setAllLeases(data || []);
-      setFilteredLeases([]); // Initially empty until unit is selected
     } catch (error) {
       console.log("Error fetching leases", error);
       toast.error("Failed to fetch leases");
@@ -138,35 +176,45 @@ const CreateReading = () => {
   };
 
   // Fetch leases for a specific unit
-  const fetchLeasesByUnit = async (unitId) => {
+  const fetchLeasesByUnit = async (unitId, rowId) => {
     if (!unitId) {
-      setFilteredLeases([]);
-      validation.setFieldValue("lease_id", "");
+      setRows((prevRows) =>
+        prevRows.map((row) =>
+          row.id === rowId ? { ...row, filteredLeases: [], lease_id: "" } : row
+        )
+      );
       return;
     }
 
     try {
       const { data } = await axiosInstance.get(`buildings/${buildingId}/leases/unit/${unitId}`);
-      setFilteredLeases(data || []);
-      // Clear lease_id if the selected lease is not in the filtered list
-      if (validation.values.lease_id) {
-        const selectedLeaseId = parseInt(validation.values.lease_id);
-        const leaseExists = (data || []).some((lease) => lease.lease?.id === selectedLeaseId);
-        if (!leaseExists) {
-          validation.setFieldValue("lease_id", "");
-        }
-      }
+      setRows((prevRows) =>
+        prevRows.map((row) =>
+          row.id === rowId
+            ? {
+                ...row,
+                filteredLeases: data || [],
+                lease_id: "", // Clear lease when unit changes
+              }
+            : row
+        )
+      );
     } catch (error) {
       console.log("Error fetching leases by unit", error);
-      setFilteredLeases([]);
-      validation.setFieldValue("lease_id", "");
+      setRows((prevRows) =>
+        prevRows.map((row) =>
+          row.id === rowId ? { ...row, filteredLeases: [], lease_id: "" } : row
+        )
+      );
     }
   };
 
-  // Fetch latest reading when item or unit changes
-  const fetchLatestReading = async (itemId, unitId) => {
+  // Fetch latest reading when item or unit changes for a specific row
+  const fetchLatestReading = async (itemId, unitId, rowId) => {
     if (!itemId || !unitId) {
-      validation.setFieldValue("previous_value", "");
+      setRows((prevRows) =>
+        prevRows.map((row) => (row.id === rowId ? { ...row, previous_value: "" } : row))
+      );
       return;
     }
 
@@ -180,37 +228,25 @@ const CreateReading = () => {
 
       if (data.reading && data.reading.current_value !== null && data.reading.current_value !== undefined) {
         const currentValue = data.reading.current_value;
-        validation.setFieldValue("previous_value", currentValue === 0 ? "0" : currentValue.toString());
+        setRows((prevRows) =>
+          prevRows.map((row) =>
+            row.id === rowId
+              ? { ...row, previous_value: currentValue === 0 ? "0" : currentValue.toString() }
+              : row
+          )
+        );
       } else {
-        validation.setFieldValue("previous_value", "");
+        setRows((prevRows) =>
+          prevRows.map((row) => (row.id === rowId ? { ...row, previous_value: "" } : row))
+        );
       }
     } catch (error) {
       console.log("Error fetching latest reading", error);
-      validation.setFieldValue("previous_value", "");
+      setRows((prevRows) =>
+        prevRows.map((row) => (row.id === rowId ? { ...row, previous_value: "" } : row))
+      );
     }
   };
-
-  // Fetch leases when unit_id changes
-  useEffect(() => {
-    const unitId = validation.values.unit_id ? parseInt(validation.values.unit_id) : null;
-    if (unitId) {
-      fetchLeasesByUnit(unitId);
-    } else {
-      setFilteredLeases([]);
-      validation.setFieldValue("lease_id", "");
-    }
-  }, [validation.values.unit_id]);
-
-  // Fetch latest reading when item or unit changes
-  useEffect(() => {
-    const itemId = validation.values.item_id;
-    const unitId = validation.values.unit_id;
-    if (itemId && unitId) {
-      fetchLatestReading(itemId, unitId);
-    } else {
-      validation.setFieldValue("previous_value", "");
-    }
-  }, [validation.values.item_id, validation.values.unit_id]);
 
   useEffect(() => {
     fetchItems();
@@ -218,18 +254,84 @@ const CreateReading = () => {
     fetchLeases();
   }, [buildingId]);
 
-  // Calculate total amount when current_value or unit_price changes
-  useEffect(() => {
-    const currentValue = parseFloat(validation.values.current_value) || 0;
-    const previousValue = parseFloat(validation.values.previous_value) || 0;
-    const unitPrice = parseFloat(validation.values.unit_price) || 0;
+  // Calculate total amount for a row when current_value, previous_value, or unit_price changes
+  const calculateTotalAmount = (row) => {
+    const currentValue = parseFloat(row.current_value) || 0;
+    const previousValue = parseFloat(row.previous_value) || 0;
+    const unitPrice = parseFloat(row.unit_price) || 0;
     const consumption = currentValue - previousValue;
     const total = consumption * unitPrice;
-    
-    if (total > 0 || (currentValue > 0 && unitPrice > 0)) {
-      validation.setFieldValue("total_amount", total.toFixed(2));
+    return total > 0 || (currentValue > 0 && unitPrice > 0) ? total.toFixed(2) : "";
+  };
+
+
+  const addRow = () => {
+    const newId = Math.max(...rows.map((r) => r.id), 0) + 1;
+    setRows([
+      ...rows,
+      {
+        id: newId,
+        unit_id: "",
+        lease_id: "",
+        previous_value: "",
+        current_value: "",
+        unit_price: "",
+        total_amount: "",
+        filteredLeases: [],
+      },
+    ]);
+  };
+
+  const removeRow = (rowId) => {
+    if (rows.length === 1) {
+      toast.warning("At least one row is required");
+      return;
     }
-  }, [validation.values.current_value, validation.values.previous_value, validation.values.unit_price]);
+    setRows(rows.filter((row) => row.id !== rowId));
+  };
+
+  const updateRow = (rowId, field, value) => {
+    setRows((prevRows) =>
+      prevRows.map((row) => {
+        if (row.id === rowId) {
+          const updatedRow = { ...row, [field]: value };
+          
+          // Calculate total amount when relevant fields change
+          if (field === "current_value" || field === "previous_value" || field === "unit_price") {
+            updatedRow.total_amount = calculateTotalAmount(updatedRow);
+          }
+
+          // When unit changes, fetch leases for that unit
+          if (field === "unit_id") {
+            fetchLeasesByUnit(value, rowId);
+            // Also fetch latest reading if item is selected
+            if (validation.values.item_id) {
+              fetchLatestReading(validation.values.item_id, value, rowId);
+            }
+          }
+
+          return updatedRow;
+        }
+        return row;
+      })
+    );
+  };
+
+  // Fetch latest reading when item_id changes for all rows with units
+  useEffect(() => {
+    const itemId = validation.values.item_id;
+    if (itemId) {
+      rows.forEach((row) => {
+        if (row.unit_id) {
+          fetchLatestReading(itemId, row.unit_id, row.id);
+        }
+      });
+    } else {
+      setRows((prevRows) =>
+        prevRows.map((row) => ({ ...row, previous_value: "" }))
+      );
+    }
+  }, [validation.values.item_id]);
 
   return (
     <React.Fragment>
@@ -247,10 +349,14 @@ const CreateReading = () => {
                       return false;
                     }}
                   >
+                    {/* Shared Inputs Section */}
+                    <h5 className="mb-3">Shared Information</h5>
                     <Row>
                       <Col md={6}>
                         <div className="mb-3">
-                          <Label>Item <span className="text-danger">*</span></Label>
+                          <Label>
+                            Item <span className="text-danger">*</span>
+                          </Label>
                           <Input
                             name="item_id"
                             type="select"
@@ -273,57 +379,9 @@ const CreateReading = () => {
                       </Col>
                       <Col md={6}>
                         <div className="mb-3">
-                          <Label>Unit <span className="text-danger">*</span></Label>
-                          <Input
-                            name="unit_id"
-                            type="select"
-                            onChange={validation.handleChange}
-                            onBlur={validation.handleBlur}
-                            value={validation.values.unit_id || ""}
-                            invalid={validation.touched.unit_id && validation.errors.unit_id ? true : false}
-                          >
-                            <option value="">Select Unit</option>
-                            {units.map((unit) => (
-                              <option key={unit.id} value={unit.id}>
-                                {unit.name}
-                              </option>
-                            ))}
-                          </Input>
-                          {validation.touched.unit_id && validation.errors.unit_id ? (
-                            <FormFeedback type="invalid">{validation.errors.unit_id}</FormFeedback>
-                          ) : null}
-                        </div>
-                      </Col>
-                      <Col md={6}>
-                        <div className="mb-3">
-                          <Label>Lease</Label>
-                          <Input
-                            name="lease_id"
-                            type="select"
-                            onChange={validation.handleChange}
-                            onBlur={validation.handleBlur}
-                            value={validation.values.lease_id || ""}
-                            invalid={validation.touched.lease_id && validation.errors.lease_id ? true : false}
-                          >
-                            <option value="">Select Lease (Optional)</option>
-                            {filteredLeases.map((leaseItem) => {
-                              const lease = leaseItem.lease || leaseItem;
-                              const peopleName = leaseItem.people?.name || "";
-                              return (
-                                <option key={lease.id} value={lease.id}>
-                                  {peopleName ? `${peopleName} - ` : ""}Lease #{lease.id}{lease.lease_terms ? ` - ${lease.lease_terms}` : ""}
-                                </option>
-                              );
-                            })}
-                          </Input>
-                          {validation.touched.lease_id && validation.errors.lease_id ? (
-                            <FormFeedback type="invalid">{validation.errors.lease_id}</FormFeedback>
-                          ) : null}
-                        </div>
-                      </Col>
-                      <Col md={6}>
-                        <div className="mb-3">
-                          <Label>Reading Date <span className="text-danger">*</span></Label>
+                          <Label>
+                            Reading Date <span className="text-danger">*</span>
+                          </Label>
                           <Input
                             name="reading_date"
                             type="date"
@@ -371,81 +429,6 @@ const CreateReading = () => {
                           ) : null}
                         </div>
                       </Col>
-                      <Col md={6}>
-                        <div className="mb-3">
-                          <Label>Previous Value</Label>
-                          <Input
-                            name="previous_value"
-                            type="number"
-                            step="0.001"
-                            min="0"
-                            onChange={validation.handleChange}
-                            onBlur={validation.handleBlur}
-                            value={validation.values.previous_value !== undefined && validation.values.previous_value !== null && validation.values.previous_value !== "" ? validation.values.previous_value : ""}
-                            placeholder="0.000"
-                            invalid={validation.touched.previous_value && validation.errors.previous_value ? true : false}
-                          />
-                          {validation.touched.previous_value && validation.errors.previous_value ? (
-                            <FormFeedback type="invalid">{validation.errors.previous_value}</FormFeedback>
-                          ) : null}
-                        </div>
-                      </Col>
-                      <Col md={6}>
-                        <div className="mb-3">
-                          <Label>Current Value</Label>
-                          <Input
-                            name="current_value"
-                            type="number"
-                            step="0.001"
-                            onChange={validation.handleChange}
-                            onBlur={validation.handleBlur}
-                            value={validation.values.current_value || ""}
-                            placeholder="0.000"
-                            invalid={validation.touched.current_value && validation.errors.current_value ? true : false}
-                          />
-                          {validation.touched.current_value && validation.errors.current_value ? (
-                            <FormFeedback type="invalid">{validation.errors.current_value}</FormFeedback>
-                          ) : null}
-                        </div>
-                      </Col>
-                      <Col md={6}>
-                        <div className="mb-3">
-                          <Label>Unit Price</Label>
-                          <Input
-                            name="unit_price"
-                            type="number"
-                            step="0.01"
-                            onChange={validation.handleChange}
-                            onBlur={validation.handleBlur}
-                            value={validation.values.unit_price || ""}
-                            placeholder="0.00"
-                            invalid={validation.touched.unit_price && validation.errors.unit_price ? true : false}
-                          />
-                          {validation.touched.unit_price && validation.errors.unit_price ? (
-                            <FormFeedback type="invalid">{validation.errors.unit_price}</FormFeedback>
-                          ) : null}
-                        </div>
-                      </Col>
-                      <Col md={6}>
-                        <div className="mb-3">
-                          <Label>Total Amount</Label>
-                          <Input
-                            name="total_amount"
-                            type="number"
-                            step="0.01"
-                            onChange={validation.handleChange}
-                            onBlur={validation.handleBlur}
-                            value={validation.values.total_amount || ""}
-                            placeholder="0.00"
-                            readOnly
-                            style={{ backgroundColor: '#e9ecef' }}
-                            invalid={validation.touched.total_amount && validation.errors.total_amount ? true : false}
-                          />
-                          {validation.touched.total_amount && validation.errors.total_amount ? (
-                            <FormFeedback type="invalid">{validation.errors.total_amount}</FormFeedback>
-                          ) : null}
-                        </div>
-                      </Col>
                       <Col md={12}>
                         <div className="mb-3">
                           <Label>Notes</Label>
@@ -466,7 +449,9 @@ const CreateReading = () => {
                       </Col>
                       <Col md={6}>
                         <div className="mb-3">
-                          <Label>Status <span className="text-danger">*</span></Label>
+                          <Label>
+                            Status <span className="text-danger">*</span>
+                          </Label>
                           <Input
                             name="status"
                             type="select"
@@ -484,7 +469,123 @@ const CreateReading = () => {
                         </div>
                       </Col>
                     </Row>
-                    <div className="d-flex justify-content-end gap-2">
+
+                    {/* Reading Rows Section */}
+                    <hr className="my-4" />
+                    <div className="d-flex justify-content-between align-items-center mb-3">
+                      <h5 className="mb-0">Reading Rows</h5>
+                      <Button type="button" color="success" size="sm" onClick={addRow}>
+                        + Add Row
+                      </Button>
+                    </div>
+
+                    <div className="table-responsive">
+                      <Table bordered hover>
+                        <thead>
+                          <tr>
+                            <th>Unit <span className="text-danger">*</span></th>
+                            <th>Lease</th>
+                            <th>Previous Value</th>
+                            <th>Current Value</th>
+                            <th>Unit Price</th>
+                            <th>Total Amount</th>
+                            <th>Action</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {rows.map((row) => (
+                            <tr key={row.id}>
+                              <td>
+                                <Input
+                                  type="select"
+                                  value={row.unit_id || ""}
+                                  onChange={(e) => updateRow(row.id, "unit_id", e.target.value)}
+                                >
+                                  <option value="">Select Unit</option>
+                                  {units.map((unit) => (
+                                    <option key={unit.id} value={unit.id}>
+                                      {unit.name}
+                                    </option>
+                                  ))}
+                                </Input>
+                              </td>
+                              <td>
+                                <Input
+                                  type="select"
+                                  value={row.lease_id || ""}
+                                  onChange={(e) => updateRow(row.id, "lease_id", e.target.value)}
+                                >
+                                  <option value="">Select Lease (Optional)</option>
+                                  {row.filteredLeases.map((leaseItem) => {
+                                    const lease = leaseItem.lease || leaseItem;
+                                    const peopleName = leaseItem.people?.name || "";
+                                    return (
+                                      <option key={lease.id} value={lease.id}>
+                                        {peopleName ? `${peopleName} - ` : ""}Lease #{lease.id}
+                                        {lease.lease_terms ? ` - ${lease.lease_terms}` : ""}
+                                      </option>
+                                    );
+                                  })}
+                                </Input>
+                              </td>
+                              <td>
+                                <Input
+                                  type="number"
+                                  step="0.001"
+                                  min="0"
+                                  value={row.previous_value || ""}
+                                  onChange={(e) => updateRow(row.id, "previous_value", e.target.value)}
+                                  placeholder="0.000"
+                                />
+                              </td>
+                              <td>
+                                <Input
+                                  type="number"
+                                  step="0.001"
+                                  min="0"
+                                  value={row.current_value || ""}
+                                  onChange={(e) => updateRow(row.id, "current_value", e.target.value)}
+                                  placeholder="0.000"
+                                />
+                              </td>
+                              <td>
+                                <Input
+                                  type="number"
+                                  step="0.01"
+                                  min="0"
+                                  value={row.unit_price || ""}
+                                  onChange={(e) => updateRow(row.id, "unit_price", e.target.value)}
+                                  placeholder="0.00"
+                                />
+                              </td>
+                              <td>
+                                <Input
+                                  type="number"
+                                  step="0.01"
+                                  value={row.total_amount || ""}
+                                  readOnly
+                                  style={{ backgroundColor: "#e9ecef" }}
+                                  placeholder="0.00"
+                                />
+                              </td>
+                              <td>
+                                <Button
+                                  type="button"
+                                  color="danger"
+                                  size="sm"
+                                  onClick={() => removeRow(row.id)}
+                                  disabled={rows.length === 1}
+                                >
+                                  Remove
+                                </Button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </Table>
+                    </div>
+
+                    <div className="d-flex justify-content-end gap-2 mt-4">
                       <Button
                         type="button"
                         color="secondary"
@@ -493,7 +594,7 @@ const CreateReading = () => {
                         Cancel
                       </Button>
                       <Button type="submit" color="primary" disabled={isLoading}>
-                        {isLoading ? "Creating..." : "Create Reading"}
+                        {isLoading ? "Creating..." : `Create ${rows.length} Reading(s)`}
                       </Button>
                     </div>
                   </Form>
@@ -509,4 +610,3 @@ const CreateReading = () => {
 };
 
 export default CreateReading;
-
