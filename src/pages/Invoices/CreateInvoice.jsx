@@ -321,7 +321,7 @@ const CreateInvoice = () => {
     // Calculate consumption
     const prev = reading.previous_value || 0;
     const current = reading.current_value || 0;
-    const consumption = current - prev;
+    const consumption = parseFloat((current - prev).toFixed(3));
     const unitPrice = reading.unit_price || 0;
     const total = reading.total_amount || 0;
 
