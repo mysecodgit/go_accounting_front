@@ -91,6 +91,8 @@ const Invoices = () => {
   const [paymentAmount, setPaymentAmount] = useState(0);
   const [paymentSplitsPreview, setPaymentSplitsPreview] = useState(null);
   const [showPaymentSplitsModal, setShowPaymentSplitsModal] = useState(false);
+  const [printInvoiceData, setPrintInvoiceData] = useState(null);
+  const [showPrintModal, setShowPrintModal] = useState(false);
 
   const fetchUnits = async () => {
     try {
@@ -194,6 +196,100 @@ const Invoices = () => {
     } catch (error) {
       console.error("Error fetching invoice details", error);
       toast.error("Failed to fetch invoice details");
+    } finally {
+      setLoading(false);
+    }
+  }, [buildingId]);
+
+  const fetchPrintInvoiceData = useCallback(async (invoiceId) => {
+    try {
+      setLoading(true);
+      let invoiceUrl = `invoices/${invoiceId}`;
+      if (buildingId) {
+        invoiceUrl = `buildings/${buildingId}/invoices/${invoiceId}`;
+      }
+      
+      // Fetch invoice details
+      const [invoiceResponse, appliedCreditsResponse, appliedDiscountsResponse, paymentsResponse] = await Promise.all([
+        axiosInstance.get(invoiceUrl),
+        axiosInstance.get(buildingId ? `buildings/${buildingId}/invoices/${invoiceId}/applied-credits` : `invoices/${invoiceId}/applied-credits`),
+        axiosInstance.get(buildingId ? `buildings/${buildingId}/invoices/${invoiceId}/applied-discounts` : `invoices/${invoiceId}/applied-discounts`),
+        axiosInstance.get(buildingId ? `buildings/${buildingId}/invoices/${invoiceId}/payments` : `invoices/${invoiceId}/payments`),
+      ]);
+
+      const invoice = invoiceResponse.data.invoice || invoiceResponse.data;
+      const appliedCredits = appliedCreditsResponse.data || [];
+      const appliedDiscounts = appliedDiscountsResponse.data || [];
+      const payments = paymentsResponse.data || [];
+
+      // Calculate totals
+      const paidAmount = payments
+        .filter(p => p.status === 1 || p.status === "1")
+        .reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
+      
+      const appliedCreditsTotal = appliedCredits
+        .filter(c => c.status === 1 || c.status === "1")
+        .reduce((sum, c) => sum + parseFloat(c.amount || 0), 0);
+      
+      const appliedDiscountsTotal = appliedDiscounts
+        .filter(d => d.status === 1 || d.status === "1")
+        .reduce((sum, d) => sum + parseFloat(d.amount || 0), 0);
+
+      // Fetch previous invoices balance (all invoices for this unit before this invoice)
+      let previousBalance = 0;
+      try {
+        const unitId = invoice.unit_id;
+        if (unitId) {
+          const invoicesUrl = buildingId ? `buildings/${buildingId}/invoices` : "invoices";
+          const allInvoicesResponse = await axiosInstance.get(invoicesUrl, {
+            params: { status: "1" }
+          });
+          const allInvoices = allInvoicesResponse.data || [];
+          
+          // Get invoices for the same unit created before this invoice (or with earlier sales_date)
+          const previousInvoices = allInvoices.filter((inv) => {
+            if (inv.id === invoice.id) return false;
+            if (inv.unit_id !== unitId) return false; // Filter by unit_id
+            const invDate = moment(inv.sales_date || inv.created_at);
+            const currentDate = moment(invoice.sales_date || invoice.created_at);
+            return invDate.isBefore(currentDate) || (invDate.isSame(currentDate) && inv.id < invoice.id);
+          });
+
+          // Calculate balance for previous invoices
+          // Note: Applied discounts on previous invoices are not included here as they may not be available in the list response
+          // If needed, we would need to fetch applied discounts for each previous invoice separately
+          previousBalance = previousInvoices.reduce((sum, inv) => {
+            const amount = parseFloat(inv.amount || 0);
+            const paid = parseFloat(inv.paid_amount || 0);
+            const credits = parseFloat(inv.applied_credits_total || 0);
+            const discounts = parseFloat(inv.applied_discounts_total || 0); // Include if available
+            const balance = amount - paid - credits - discounts;
+            return sum + Math.max(0, balance); // Only positive balances
+          }, 0);
+        }
+      } catch (error) {
+        console.error("Error fetching previous invoices balance", error);
+      }
+
+      const invoiceAmount = parseFloat(invoice.amount || 0);
+      const totalAmount = invoiceAmount + previousBalance;
+      const dueAmount = Math.max(0, totalAmount - paidAmount - appliedCreditsTotal - appliedDiscountsTotal);
+
+      setPrintInvoiceData({
+        invoice: invoiceResponse.data,
+        paidAmount,
+        appliedCreditsTotal,
+        appliedDiscountsTotal,
+        previousBalance,
+        dueAmount,
+        invoiceAmount,
+      });
+
+
+      setShowPrintModal(true);
+    } catch (error) {
+      console.error("Error fetching print invoice data", error);
+      toast.error("Failed to fetch invoice data for printing");
     } finally {
       setLoading(false);
     }
@@ -1259,6 +1355,18 @@ const Invoices = () => {
                   </Row>
 
                   <div className="text-end mt-3">
+                    <Button 
+                      color="primary" 
+                      className="me-2"
+                      onClick={async () => {
+                        const invoiceId = viewingInvoice.invoice?.id || viewingInvoice.id;
+                        if (invoiceId) {
+                          await fetchPrintInvoiceData(invoiceId);
+                        }
+                      }}
+                    >
+                      <i className="bx bx-printer"></i> Print
+                    </Button>
                     <Button color="secondary" onClick={() => setShowInvoiceDetailsModal(false)}>
                       Close
                     </Button>
@@ -2020,6 +2128,227 @@ const Invoices = () => {
                     </Button>
                   </div>
                 </>
+              )}
+            </ModalBody>
+          </Modal>
+
+          {/* Print Invoice Modal */}
+          <Modal isOpen={showPrintModal} toggle={() => setShowPrintModal(false)} size="xl">
+            <ModalHeader toggle={() => setShowPrintModal(false)}>Print Invoice</ModalHeader>
+            <ModalBody>
+              {printInvoiceData && (
+                <div id="invoice-print-content">
+                  <div className="text-end mb-3 no-print">
+                    <Button color="primary" onClick={() => window.print()}>
+                      <i className="bx bx-printer"></i> Print
+                    </Button>
+                  </div>
+                  
+                  <style>{`
+                   
+                    @media print {
+                      body * {
+                        visibility: hidden;
+                        
+                      }
+                      #invoice-print-content, #invoice-print-content * {
+                        visibility: visible;
+                        -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    
+                      }
+                      #invoice-print-content {
+                        position: absolute;
+                        left: 0;
+                        top: 0;
+                        width: 100%;
+                        margin-top: -50px !important;
+
+                      }
+                      .no-print {
+                        display: none !important;
+                      }
+                      .print-break {
+                        page-break-after: avoid;
+    page-break-before: avoid;
+    page-break-inside: avoid;
+                      }
+                      .invoice-print {
+                        font-size: 14px;
+                        line-height: 1.3;
+                      }
+                      .invoice-header {
+                        margin-bottom: 20px;
+                        padding-bottom: 15px;
+                        border-bottom: 2px solid #000;
+                      }
+                      .invoice-title {
+                        font-size: 24px;
+                        font-weight: bold;
+                        text-align: center;
+                        margin-bottom: 12px;
+                        letter-spacing: 2px;
+                      }
+                      .invoice-header-info {
+                        display: flex;
+                        justify-content: space-between;
+                        font-size: 14px;
+                      }
+                      .invoice-header-left, .invoice-header-right {
+                        flex: 1;
+                      }
+                      .invoice-header-item {
+                        margin-bottom: 8px;
+                        display: flex;
+                      }
+                      .invoice-header-label {
+                        font-weight: bold;
+                        min-width: 70px;
+                        margin-right: 8px;
+                      }
+                      .invoice-header-value {
+                        flex: 1;
+                      }
+                    }
+                  `}</style>
+
+                  <div className="invoice-print">
+                    {/* Invoice Header */}
+                    <div className="invoice-header">
+                      <div className="invoice-title">INVOICE</div>
+                      <div className="invoice-header-info">
+                        <div className="invoice-header-left">
+                          <div className="invoice-header-item">
+                            <span className="invoice-header-label">Invoice #:</span>
+                            <span className="invoice-header-value">{printInvoiceData.invoice.invoice?.invoice_no || printInvoiceData.invoice.invoice_no}</span>
+                          </div>
+                          <div className="invoice-header-item">
+                            <span className="invoice-header-label">Sales Date:</span>
+                            <span className="invoice-header-value">{printInvoiceData.invoice.invoice?.sales_date ? moment(printInvoiceData.invoice.invoice.sales_date).format("D MMM YYYY") : moment(printInvoiceData.invoice.sales_date).format("D MMM YYYY")}</span>
+                          </div>
+                          <div className="invoice-header-item">
+                            <span className="invoice-header-label">Due Date:</span>
+                            <span className="invoice-header-value">{printInvoiceData.invoice.invoice?.due_date ? moment(printInvoiceData.invoice.invoice.due_date).format("D MMM YYYY") : moment(printInvoiceData.invoice.due_date).format("D MMM YYYY")}</span>
+                          </div>
+                        </div>
+                        <div className="invoice-header-right">
+                          <div className="invoice-header-item">
+                            <span className="invoice-header-label">Customer:</span>
+                            <span className="invoice-header-value">
+                              {(() => {
+                                const peopleId = printInvoiceData.invoice.invoice?.people_id || printInvoiceData.invoice.people_id;
+                                const person = people.find((p) => p.id === peopleId);
+                                return person ? person.name : `ID: ${peopleId || "N/A"}`;
+                              })()}
+                            </span>
+                          </div>
+                          <div className="invoice-header-item">
+                            <span className="invoice-header-label">Unit:</span>
+                            <span className="invoice-header-value">
+                              {(() => {
+                                const unitId = printInvoiceData.invoice.invoice?.unit_id || printInvoiceData.invoice.unit_id;
+                                const unit = units.find((u) => u.id === unitId);
+                                document.title = unit ? unit.name : `ID: ${unitId || "N/A"}`;
+                                return unit ? unit.name : `ID: ${unitId || "N/A"}`;
+                              })()}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Invoice Items */}
+                    <div className="mb-4" style={{ marginTop: '15px' }}>
+                      <h5 style={{ fontSize: '14px', marginBottom: '8px', fontWeight: 'bold',textTransform:'uppercase' }}>Invoice Items</h5>
+                      <Table bordered>
+                        <thead>
+                          <tr>
+                            <th>Item Name</th>
+                            <th>Previous </th>
+                            <th>Current</th>
+                            <th>Qty</th>
+                            <th>Rate</th>
+                            <th>Total</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {(printInvoiceData.invoice.items || []).filter(item => item.status === "1" || item.status === 1).map((item, index) => (
+                            <tr key={index}>
+                              <td>{item.item_name}</td>
+                              <td>{item.previous_value !== null && item.previous_value !== undefined ? parseFloat(item.previous_value).toFixed(3).replace(/\.?0+$/, '') : "-"}</td>
+                              <td>{item.current_value !== null && item.current_value !== undefined ? parseFloat(item.current_value).toFixed(3).replace(/\.?0+$/, '') : "-"}</td>
+                              <td>{item.qty !== null && item.qty !== undefined ? parseFloat(item.qty).toFixed(3).replace(/\.?0+$/, '') : "-"}</td>
+                              <td>{item.rate || "N/A"}</td>
+                              <td>{parseFloat(item.total || 0).toFixed(2)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </Table>
+                    </div>
+
+                    {/* Summary */}
+                    <div className="mb-4">
+                      <Row>
+                        <Col md={6}></Col>
+                        <Col md={6}>
+                          <Table bordered>
+                            <tbody>
+                              <tr>
+                                <td><strong>Amount</strong></td>
+                                <td className="text-end">{printInvoiceData.invoiceAmount.toFixed(2)}</td>
+                              </tr>
+                              {printInvoiceData.previousBalance > 0 && (
+                                <tr>
+                                  <td><strong>Previous Balance</strong></td>
+                                  <td className="text-end">{printInvoiceData.previousBalance.toFixed(2)}</td>
+                                </tr>
+                              )}
+                              {printInvoiceData.previousBalance > 0 && (
+                                <tr>
+                                  <td><strong>Total Amount</strong></td>
+                                  <td className="text-end"><strong>{(printInvoiceData.invoiceAmount + printInvoiceData.previousBalance).toFixed(2)}</strong></td>
+                                </tr>
+                              )}
+                              <tr>
+                                <td><strong>Paid</strong></td>
+                                <td className="text-end">{printInvoiceData.paidAmount.toFixed(2)}</td>
+                              </tr>
+                              {printInvoiceData.appliedCreditsTotal > 0 && (
+                                <tr>
+                                  <td><strong>Applied Credits</strong></td>
+                                  <td className="text-end">{printInvoiceData.appliedCreditsTotal.toFixed(2)}</td>
+                                </tr>
+                              )}
+                              {printInvoiceData.appliedDiscountsTotal > 0 && (
+                                <tr>
+                                  <td><strong>Applied Discount</strong></td>
+                                  <td className="text-end">{printInvoiceData.appliedDiscountsTotal.toFixed(2)}</td>
+                                </tr>
+                              )}
+                              <tr style={{ backgroundColor: "#f8f9fa", fontWeight: "bold" }}>
+                                <td><strong>Due</strong></td>
+                                <td className="text-end"><strong>{printInvoiceData.dueAmount.toFixed(2)}</strong></td>
+                              </tr>
+                            </tbody>
+                          </Table>
+                        </Col>
+                      </Row>
+                    </div>
+
+                    {/* {printInvoiceData.invoice.invoice?.description || printInvoiceData.invoice.description ? (
+                      <div className="mb-4">
+                        <strong>Description:</strong>
+                        <p>{printInvoiceData.invoice.invoice?.description || printInvoiceData.invoice.description}</p>
+                      </div>
+                    ) : null} */}
+                  </div>
+
+                  <div className="text-end mt-3 no-print">
+                    <Button color="secondary" onClick={() => setShowPrintModal(false)}>
+                      Close
+                    </Button>
+                  </div>
+                </div>
               )}
             </ModalBody>
           </Modal>
